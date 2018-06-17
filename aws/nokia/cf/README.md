@@ -1,1 +1,1 @@
-This directory contains cloudformation templates for nokia
+This directory contains cloudformation templates for nokia sd-wan
