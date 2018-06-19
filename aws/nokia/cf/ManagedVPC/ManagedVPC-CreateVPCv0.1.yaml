@@ -1,0 +1,506 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create VPC: VPC and basic network plumbing / security'
+#################################################################################
+#Create VPC : A McNeill
+#################################################################################
+
+#TBD - ·	Look at use of include to make more modular - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/create-reusable-transform-function-snippets-and-add-to-your-template-with-aws-include-transform.html
+
+#################################################################################
+#Inputs
+#################################################################################
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+      - CustName
+      - Region
+      - ClassABC
+      - CustContact
+Parameters:
+  CustName:
+    Description: 'Name of Customer peering to this VPC'
+    Type: String
+  Region:
+    Description: 'Name of target region'
+    Type: String
+  ClassABC:
+    Description: 'Class ABC of VPC (XXX.XXX.XXX.0/24)'
+    Type: String
+  CustContact:
+    Description: 'Customer address to send notifications to'
+    Type: String
+  #could also use sms but not supported in all regions yet 
+
+#TBD - Use of conditions to have different VPC flavours – e.g resilient / non resilient - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-sample-templates.html. Have input parameter of resilient =Yes/No. Then have this condition:
+#Conditions:
+#	MultiAZ: !Equals [!Ref Resilient, prod]
+#Then assign condition to resource which are only build if multiAZ/resilience is required
+  
+    
+    
+    
+#  ClassB:
+#    Description: 'Class B of VPC (10.XXX.0.0/16)'
+#    Type: Number
+#    Default: 0
+#    ConstraintDescription: 'Must be in the range [0-255]'
+#    MinValue: 0
+#    MaxValue: 255
+#################################################################################
+#Resources
+#################################################################################
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Sub '${ClassABC}.0/24'
+#     CidrBlock: !Sub '${ClassB}.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+      - Key: Name
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+#       Value: !Sub '10.${ClassB}.0.0/16'
+
+#IAM roles - these are static for BT management (i.e apply to all VPCs in the management account
+#TBD - create create customer role here and give cross account access so customer has read only access to the VPC for various purposes.
+#Need to create role giving access to this VPC and associated trust policy assume role granted to customer account (need acount number as input parameter)
+#See - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub 'IG_${CustName}_DYNS_MVPC'
+#       Value: !Sub '10.${ClassB}.0.0/16'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+      
+      
+  #TBD - need to add NACLs for fw, accelerator and other subnets here. 
+  #TBD - also need to add routing tables for these subnets
+  SubnetA1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub '${ClassABC}.0/28'
+#     CidrBlock: !Sub '10.${ClassB}.0.0/20'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Sub_SDWANnet_${CustName}_DYNS_MVPC'
+      - Key: Reach
+        Value: public
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  SubnetA2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub '${ClassABC}.16/28'
+#     CidrBlock: !Sub '10.${ClassB}.16.0/20'
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Sub_SDWANacc_${CustName}_DYNS_MVPC'
+      - Key: Reach
+        Value: private
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  SubnetB1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Sub '${ClassABC}.32/28'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZb_Sub_SDWANnet_${CustName}_DYNS_MVPC'
+      - Key: Reach
+        Value: public
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  SubnetB2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Sub '${ClassABC}.48/28'
+#     CidrBlock: !Sub '10.${ClassB}.48.0/20'
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZb_Sub_SDWANacc_${CustName}_DYNS_MVPC'
+      - Key: Reach
+        Value: private
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  RouteTableA1: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Rt_SDWANnet_${CustName}_DYNS_MVPC'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  RouteTableA2: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Rt_SDWANacc_${CustName}_DYNS_MVPC'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  RouteTableB1:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZb_Rt_SDWANnet_${CustName}_DYNS_MVPC'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  RouteTableB2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZb_Rt_SDWANacc_${CustName}_DYNS_MVPC'
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  RouteTableAssociationA1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA1
+      RouteTableId: !Ref RouteTableA1
+  RouteTableAssociationA2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA2
+      RouteTableId: !Ref RouteTableA2
+  RouteTableAssociationB1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB1
+      RouteTableId: !Ref RouteTableB1
+  RouteTableAssociationB2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB2
+      RouteTableId: !Ref RouteTableB2
+  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableA1
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+  RouteTablePublicBInternetRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableB1
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+      
+ #Add nacls to vpc stack. Remove allow all entries and add in specific allow entries. Check default deny rule is created
+ #tbd - add nacls per subnet type, not just public and private
+ #possibly move acls to VNF stacks
+  NetworkAcl1:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  NetworkAcl2:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private
+      - Key: MVPC_Cost_ByCust
+        Value: !Ref CustName
+      - Key: MVPC_Cost_ByVPC
+        Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+  SubnetNetworkAclAssociationA1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA1
+      NetworkAclId: !Ref NetworkAcl1
+  SubnetNetworkAclAssociationA2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA2
+      NetworkAclId: !Ref NetworkAcl2
+  SubnetNetworkAclAssociationB1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB1
+      NetworkAclId: !Ref NetworkAcl1
+  SubnetNetworkAclAssociationB2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB2
+      NetworkAclId: !Ref NetworkAcl2
+  NetworkAclEntryIn1AllowAll:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAcl1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1AllowAll:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAcl1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInPrivateAllowVPC:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAcl2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOutPrivateAllowVPC:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAcl2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+      
+ #Placement group – can’t see way of giving this a name. Seems to give a default name <stackname>-<resourceid>-<random string>
+  PlacementGroupA:
+    Type: AWS::EC2::PlacementGroup
+    Properties:
+        Strategy: cluster
+  #not supported      GroupName: 'AZa_Pg_${CustName}_DYNS_MVPC'
+  PlacementGroupB:
+    Type: AWS::EC2::PlacementGroup
+    Properties:
+        Strategy: cluster
+  #not supported      GroupName: 'AZb_Pg_${CustName}_DYNS_MVPC'
+  
+  
+  #Placeholder for direct connect setup and connectivity
+  
+  
+  #Placeholder for VPC peering / VPN resources. May have to put this in a separate stack
+  
+  
+  
+  
+  
+  
+  
+  #Remove for now to avoid lots of mails
+  #TBD - Don't think can send message from cf, probably need lambda function to do this.
+  #note - cost allocation tags not yet supported
+  #CustSNSTopic:
+  #  Type: AWS::SNS::Topic
+  #  Properties:
+  #      Subscription:
+  #      - Endpoint: !Sub '${CustContact}'
+  #        Protocol: email
+  
+  #Flowlogs - need to decide if have all or just against set subnets/interfaces or not at all
+  VPCFlowLog:     
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+        DeliverLogsPermissionArn : arn:aws:iam::813970735459:role/flrole
+        LogGroupName : !Sub 'AZb_Fl_${CustName}_DYNS_MVPC'
+        ResourceId : !Ref VPC
+        ResourceType : VPC
+        TrafficType : ALL
+    #TBD - check if tags are supported for this resource
+    #Tags:  
+    #  - Key: MVPC_Cost_ByCust
+    #    Value: !Ref CustName
+    #  - Key: MVPC_Cost_ByVPC
+    #    Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+ 
+ #TBD - Also maybe add cloudwatch log delivery to this
+  ClTrail: 
+    Type: "AWS::CloudTrail::Trail"
+    Properties: 
+      S3BucketName: dynstestauditlogs
+      IsLogging: true
+      TrailName: !Sub 'Audit_${CustName}_DYNS_MVPC'
+    #TBD - check if tags are supported for this resource
+    #Tags:
+    #  - Key: MVPC_Cost_ByCust
+    #    Value: !Ref CustName
+    #  - Key: MVPC_Cost_ByVPC
+    #    Value: !Sub '${CustName}-${Region}_DYNS_MVPC'
+
+#################################################################################
+#Outputs
+#################################################################################
+Outputs:
+  TemplateID:
+    Description: 'cloudonaut.io template id.'
+    Value: 'vpc/vpc-2azs'
+  TemplateVersion:
+    Description: 'cloudonaut.io template version.'
+    Value: '6.14.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  AZs:
+    Description: 'AZs'
+    Value: 2
+    Export:
+      Name: !Sub '${AWS::StackName}-AZs'
+  AZA:
+    Description: 'AZ of A'
+    Value: !Select [0, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZA'
+  AZB:
+    Description: 'AZ of B'
+    Value: !Select [1, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZB'
+  ClassABC:
+    Description: 'Class ABC.'
+    Value: !Ref ClassABC
+    Export:
+      Name: !Sub '${AWS::StackName}-ClassABC'
+  VPC:
+    Description: 'VPC.'
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+  SubnetsPublic:
+    Description: 'Subnets public.'
+    Value: !Join [',', [!Ref SubnetA1, !Ref SubnetB1]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsPublic'
+  SubnetsPrivate:
+    Description: 'Subnets private.'
+    Value: !Join [',', [!Ref SubnetA2, !Ref SubnetB2]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsPrivate'
+  #RouteTablePrivate: # deprecated in v4, will be removed in v5
+  #  Description: 'Route table private (deprecated in v4, will be removed in v5).'
+  #  Value: !Ref RouteTablePrivate
+  #  Export:
+  #    Name: !Sub '${AWS::StackName}-RouteTablePrivate'
+  #RouteTablePublic: # deprecated in v4, will be removed in v5
+  #  Description: 'Route table public (deprecated in v4, will be removed in v5).'
+  #  Value: !Ref RouteTablePublic
+  #  Export:
+  #    Name: !Sub '${AWS::StackName}-RouteTablePublic'
+  #RouteTablesPrivate:
+  #  Description: 'Route tables private.'
+  #  Value: !Join [',', [!Ref RouteTablePrivate, !Ref RouteTableBPrivate]]
+  #  Export:
+  #    Name: !Sub '${AWS::StackName}-RouteTablesPrivate'
+  #RouteTablesPublic:
+  #  Description: 'Route tables public.'
+  #  Value: !Join [',', [!Ref RouteTablePublic, !Ref RouteTableBPublic]]
+  #  Export:
+  #    Name: !Sub '${AWS::StackName}-RouteTablesPublic'
+  SubnetA1:
+    Description: 'Subnet A1.'
+    Value: !Ref SubnetA1
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetA1'
+  RouteTableA1:
+    Description: 'Route table A1.'
+    Value: !Ref RouteTableA1
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableA1'
+  SubnetA2:
+    Description: 'Subnet A2.'
+    Value: !Ref SubnetA2
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetA2'
+  RouteTableA2:
+    Description: 'Route table A2.'
+    Value: !Ref RouteTableA2
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableA2'
+  SubnetB1:
+    Description: 'Subnet B1.'
+    Value: !Ref SubnetB1
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetB1'
+  RouteTableB1:
+    Description: 'Route table B1.'
+    Value: !Ref RouteTableB1
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableB1'
+  SubnetB2:
+    Description: 'Subnet B2.'
+    Value: !Ref SubnetB2
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetB2'
+  RouteTableB2:
+    Description: 'Route table B2.'
+    Value: !Ref RouteTableB2
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableB2'
+  PlacementGroupA:
+    Description: 'Placement GroupA.'
+    Value: !Ref PlacementGroupA
+    Export:
+      Name: !Sub '${AWS::StackName}-PlacementGroupA'
+  PlacementGroupB:
+    Description: 'Placement GroupB.'
+    Value: !Ref PlacementGroupB
+    Export:
+      Name: !Sub '${AWS::StackName}-PlacementGroupB'

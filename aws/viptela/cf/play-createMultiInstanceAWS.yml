@@ -1,0 +1,17 @@
+---
+- name: "Deploy vedge to multiple regions"
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars:
+     regionList : ["eu-west-1","eu-west-2"]
+
+  tasks:
+#  - name : Deploy to multiple regions 
+     - debug:
+          msg: "hello"
+     - include: "play-createInstanceAWS.yml"
+#        include: play-createInstanceAWS.yml region="{{ item }}"
+
+

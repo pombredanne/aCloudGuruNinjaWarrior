@@ -1,0 +1,306 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation Sample Template EC2InstanceWithSecurityGroupSample: Create an Amazon EC2 instance running the Amazon Linux AMI. The AMI is chosen based on the region in which the stack is run. This example creates an EC2 security group for the instance to give you SSH access. **WARNING** This template creates an Amazon EC2 instance. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "VPCName": {
+      "Description": "VPC ID",
+      "Type": "AWS::EC2::VPC::Id",
+      "ConstraintDescription": "Must be from existing VPC"
+    },
+    "SubnetId": {
+      "Description": "Subnet ID",
+      "Type": "AWS::EC2::Subnet::Id",
+      "ConstraintDescription": "Must be from existing subnet"
+    },
+    "SubnetIdPort1": {
+      "Description": "Subnet ID for Port1 interface",
+      "Type": "AWS::EC2::Subnet::Id",
+      "ConstraintDescription": "Must be from existing subnet"
+    },
+    "SecGroup": {
+      "Description": "Security Group IDs",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>",
+      "ConstraintDescription": "Security Groups already created"
+    },
+    "SecGroup1": {
+      "Description": "Security Group ID for port1",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>",
+      "ConstraintDescription": "Security Groups already created"
+    },
+    "AMI": {
+      "Description": "Enter AMI-ID for Instance",
+      "Type": "AWS::EC2::Image::Id",
+      "ConstraintDescription": "Security Groups already created"
+    },
+    "InstanceType": {
+      "Description": "NSG EC2 instance type",
+      "Type": "String",
+      "Default": "c4.8xlarge",
+      "AllowedValues": [
+        "c3.8xlarge",
+        "c4.8xlarge",
+        "g2.8xlarge",
+        "r3.8xlarge",
+        "i2.8xlarge",
+        "d2.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "cr1.8xlarge",
+        "cc2.8xlarge",
+        "m2.4xlarge",
+        "m4.4xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "InstanceName": {
+      "Description": "Enter Name for Instance",
+      "ConstraintDescription": "Instance Name",
+	  "Type": "String"
+    }
+  },
+  "Resources": {
+    "EC2Instance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+		"Tags": [{
+			"Key" : "Name", "Value" : {"Ref":"InstanceName"}
+		}],
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "ImageId": {
+          "Ref": "AMI"
+        },
+        "UserData":{  
+            "Fn::Base64":{  
+                "Fn::Join":[  
+                    "",
+                    [  
+                        "#cloud-config\n",
+                        "aws_image: true\n",
+                        "nuage_nsg:\n",
+                        "    proxyFQDN: proxy.dc.nuagedemo.net\n",
+                        "    enterpriseID: null\n",
+                        "    NSGatewayID: null\n",
+                        "    NSGType: NSG-AMI\n",
+                        "    signature: F0iKCcWVQQQEAU1SG0CiJTR0SwOWBr8D7MrB4S1Qw8aLhJAkB8uX6GV4LCa2LFFvL4pemiZ0u/9XPia12l8GQ3w3u4QeWX14H0ZkiSFaWdm9Perp1hmc8cLnMyPvXgty4mt8uKU12lOlmg5tDuX+X8fvC1mSEgP4hX4gEtknL0uHCeEV2HVGUWesgQYKgORhFdE3ug8nbsmaCeeRbHLlsWk+X+5lNinWbfPc9XAAkJsU5yX2TLpOewLedfQLqzxrOOHOC37n44SEMAMo7j+eQQevpKoMEao+gpyvLKj8V63hAgB3mlIyWYtgaC5u9pYw0keJ2E0Qj9Ep0p+TI+tINg=="
+                    ]
+                ]
+            }
+        },
+        "NetworkInterfaces": [
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NI2R7X8"
+            },
+            "DeviceIndex": "0"
+          },
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NI2L5XR"
+            },
+            "DeviceIndex": "1"
+          },
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NI26ZN8"
+            },
+            "DeviceIndex": "2"
+          },
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NI181MR"
+            },
+            "DeviceIndex": "3"
+          },
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NI1O10R"
+            },
+            "DeviceIndex": "4"
+          },
+          {
+            "NetworkInterfaceId": {
+              "Ref": "EC2NIU0OR"
+            },
+            "DeviceIndex": "5"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "5c600c32-ec61-4f7a-9db3-a70a5dbe0d10"
+        }
+      }
+    },
+    "EC2NI2R7X8": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetIdPort1"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup1"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "0639f98b-f62a-4c80-89b2-7e521cdb5c52"
+        }
+      }
+    },
+    "EC2NI2L5XR": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "2a4fb0fa-120e-4b25-bd35-edf2b24655ec"
+        }
+      }
+    },
+    "EC2NI26ZN8": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "856366ed-926d-4e61-8596-6354f9bd51c2"
+        }
+      }
+    },
+    "EC2NI1O10R": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "993255cd-f848-49bb-8f4e-a974464fa26f"
+        }
+      }
+    },
+    "EC2NIU0OR": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "1afb7d3c-1222-4d57-a424-a5ec04edf72a"
+        }
+      }
+    },
+    "EC2NI181MR": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+        "GroupSet": {
+          "Ref": "SecGroup"
+        },
+		 "SourceDestCheck" : "false"
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "ee3c1663-2559-41ca-9cd6-df88dd0cc4eb"
+        }
+      }
+    },
+    "EC2EIP3W8RR": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": {
+          "Ref": "VPCName"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "a0746fb6-6e6d-4e8c-b368-553cd8dc18b0"
+        }
+      }
+    },
+    "EC2EIPA2SM3R": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "EC2EIP3W8RR",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "EC2NI2R7X8"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "5f1ef8cb-ad31-43ed-bdce-6b4f3b0a6313"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {
+      "Description": "InstanceId of the newly created EC2 instance",
+      "Value": {
+        "Ref": "EC2Instance"
+      }
+    },
+    "AZ": {
+      "Description": "Availability Zone of the newly created EC2 instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2Instance",
+          "AvailabilityZone"
+        ]
+      }
+    },
+    "IPAddress": {
+      "Description": "IP Address of Port1 of NSG",
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2Instance",
+          "PublicDnsName"
+        ]
+      }
+    }
+  }
+}

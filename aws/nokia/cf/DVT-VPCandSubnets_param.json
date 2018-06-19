@@ -1,0 +1,12 @@
+{
+  "Parameters" : 
+  {
+    "ClassABC" : "10.1.1",
+	"VPCName" : "DVT_SDWAN",
+	"AlertContact1" : "andy.mcneill@bt.com",
+	"AlertContact2" : "marc.whiffen@bt.com",
+	"Resilience" : "false"
+  
+  }
+
+}

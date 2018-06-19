@@ -1,0 +1,322 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC: public and private subnets in two availability zones, a cloudonaut.io template'
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+      - ClassB
+Parameters:
+  ClassB:
+    Description: 'Class B of VPC (10.XXX.0.0/16)'
+    Type: Number
+    Default: 0
+    ConstraintDescription: 'Must be in the range [0-255]'
+    MinValue: 0
+    MaxValue: 255
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: Fn::Sub '10.${ClassB}.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+      - Key: Name
+        Value: Fn::Sub '10.${ClassB}.0.0/16'
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+      - Key: Name
+        Value: Fn::Sub '10.${ClassB}.0.0/16'
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: Fn::Ref VPC
+      InternetGatewayId: Fn::Ref InternetGateway
+  SubnetAPublic:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: Fn::Select [0, Fn::GetAZs '']
+      CidrBlock: Fn::Sub '10.${ClassB}.0.0/20'
+      MapPublicIpOnLaunch: true
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'A public'
+      - Key: Reach
+        Value: public
+  SubnetAPrivate:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: Fn::Select [0, Fn::GetAZs '']
+      CidrBlock: Fn::Sub '10.${ClassB}.16.0/20'
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'A private'
+      - Key: Reach
+        Value: private
+  SubnetBPublic:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: Fn::Select [1, Fn::GetAZs '']
+      CidrBlock: Fn::Sub '10.${ClassB}.32.0/20'
+      MapPublicIpOnLaunch: true
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'B public'
+      - Key: Reach
+        Value: public
+  SubnetBPrivate:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: Fn::Select [1, Fn::GetAZs '']
+      CidrBlock: Fn::Sub '10.${ClassB}.48.0/20'
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'B private'
+      - Key: Reach
+        Value: private
+  RouteTablePublic: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'A Public'
+  RouteTablePrivate: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'A Private'
+  RouteTableBPublic:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'B Public'
+  RouteTableBPrivate:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: 'B Private'
+  RouteTableAssociationAPublic:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetAPublic
+      RouteTableId: Fn::Ref RouteTablePublic
+  RouteTableAssociationAPrivate:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetAPrivate
+      RouteTableId: Fn::Ref RouteTablePrivate
+  RouteTableAssociationBPublic:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetBPublic
+      RouteTableId: Fn::Ref RouteTableBPublic
+  RouteTableAssociationBPrivate:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetBPrivate
+      RouteTableId: Fn::Ref RouteTableBPrivate
+  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: Fn::Ref RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: Fn::Ref InternetGateway
+  RouteTablePublicBInternetRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: Fn::Ref RouteTableBPublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: Fn::Ref InternetGateway
+  NetworkAclPublic:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public
+  NetworkAclPrivate:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: Fn::Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private
+  SubnetNetworkAclAssociationAPublic:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetAPublic
+      NetworkAclId: Fn::Ref NetworkAclPublic
+  SubnetNetworkAclAssociationAPrivate:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetAPrivate
+      NetworkAclId: Fn::Ref NetworkAclPrivate
+  SubnetNetworkAclAssociationBPublic:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetBPublic
+      NetworkAclId: Fn::Ref NetworkAclPublic
+  SubnetNetworkAclAssociationBPrivate:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: Fn::Ref SubnetBPrivate
+      NetworkAclId: Fn::Ref NetworkAclPrivate
+  NetworkAclEntryInPublicAllowAll:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: Fn::Ref NetworkAclPublic
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOutPublicAllowAll:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: Fn::Ref NetworkAclPublic
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInPrivateAllowVPC:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: Fn::Ref NetworkAclPrivate
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOutPrivateAllowVPC:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: Fn::Ref NetworkAclPrivate
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+Outputs:
+  TemplateID:
+    Description: 'cloudonaut.io template id.'
+    Value: 'vpc/vpc-2azs'
+  TemplateVersion:
+    Description: 'cloudonaut.io template version.'
+    Value: '6.14.0'
+  StackName:
+    Description: 'Stack name.'
+    Value: Fn::Sub '${AWS::StackName}'
+  AZs:
+    Description: 'AZs'
+    Value: Fn::Sub '${AWS::StackName}_AZs'
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}_AZs'
+  AZA:
+    Description: 'AZ of A'
+    Value: Fn::Select [0, Fn::GetAZs '']
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-AZA'
+  AZB:
+    Description: 'AZ of B'
+    Value: Fn::Select [1, Fn::GetAZs '']
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-AZB'
+  ClassB:
+    Description: 'Class B.'
+    Value: Fn::Ref ClassB
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-ClassB'
+  VPC:
+    Description: 'VPC.'
+    Value: Fn::Ref VPC
+#   Export:
+#   Name: Fn::Sub '${AWS::StackName}-VPC'
+  SubnetsPublic:
+    Description: 'Subnets public.'
+    Value: Fn::Join [',', [Fn::Ref SubnetAPublic, Fn::Ref SubnetBPublic]]
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetsPublic'
+  SubnetsPrivate:
+    Description: 'Subnets private.'
+    Value: Fn::Join [',', [Fn::Ref SubnetAPrivate, Fn::Ref SubnetBPrivate]]
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetsPrivate'
+  RouteTablePrivate: # deprecated in v4, will be removed in v5
+    Description: 'Route table private (deprecated in v4, will be removed in v5).'
+    Value: Fn::Ref RouteTablePrivate
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTablePrivate'
+  RouteTablePublic: # deprecated in v4, will be removed in v5
+    Description: 'Route table public (deprecated in v4, will be removed in v5).'
+    Value: Fn::Ref RouteTablePublic
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTablePublic'
+  RouteTablesPrivate:
+    Description: 'Route tables private.'
+    Value: Fn::Join [',', [Fn::Ref RouteTablePrivate, Fn::Ref RouteTableBPrivate]]
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTablesPrivate'
+  RouteTablesPublic:
+    Description: 'Route tables public.'
+    Value: Fn::Join [',', [Fn::Ref RouteTablePublic, Fn::Ref RouteTableBPublic]]
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTablesPublic'
+  SubnetAPublic:
+    Description: 'Subnet A public.'
+    Value: Fn::Ref SubnetAPublic
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetAPublic'
+  RouteTableAPublic:
+    Description: 'Route table A public.'
+    Value: Fn::Ref RouteTablePublic
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTableAPublic'
+  SubnetAPrivate:
+    Description: 'Subnet A private.'
+    Value: Fn::Ref SubnetAPrivate
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetAPrivate'
+  RouteTableAPrivate:
+    Description: 'Route table A private.'
+    Value: Fn::Ref RouteTablePrivate
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTableAPrivate'
+  SubnetBPublic:
+    Description: 'Subnet B public.'
+    Value: Fn::Ref SubnetBPublic
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetBPublic'
+  RouteTableBPublic:
+    Description: 'Route table B public.'
+    Value: Fn::Ref RouteTableBPublic
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTableBPublic'
+  SubnetBPrivate:
+    Description: 'Subnet B private.'
+    Value: Fn::Ref SubnetBPrivate
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-SubnetBPrivate'
+  RouteTableBPrivate:
+    Description: 'Route table B private.'
+    Value: Fn::Ref RouteTableBPrivate
+#    Export:
+#      Name: Fn::Sub '${AWS::StackName}-RouteTableBPrivate'
