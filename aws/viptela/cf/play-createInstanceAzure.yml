@@ -1,0 +1,23 @@
+---
+- name: "Deploy vedge" 
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars:
+    Disk: "tbc"
+    InstanceType: "tbc"
+
+  tasks:
+    - name: Deploy vedge to Azure
+      azure_rm_deployment:
+        state: present
+        resource_group_name: sdwan-rgplay
+        template_link: 'file://home/ec2-user/blah.json'
+        parameters_link: 'file://home/ec2-user/blah.json'
+      register: deployment
+
+
+#
+#    - name: Configure vmanage controller
+

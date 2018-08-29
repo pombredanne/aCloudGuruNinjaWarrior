@@ -1,0 +1,22 @@
+---
+- name: "Deploy vedges" 
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars:
+    InstanceType: "t2.small"
+    regionList : ["us-east-1","eu-west-2"]
+    vedges:
+      - {vedgeName: vedge-use1, region:us-east-1 ami: version1, keyPair: extra1}
+      - {vedgeName: vedge-euw1, region:eu-west-2 ami: version1, keyPair: extra1}
+
+  tasks:
+     - include: tasks-createInstanceAWS.yml region="{{ item.region }}" keypair="{{ item.keypair }}" ami"{{ item.ami }}" instanceName="{{ item.vedgeName }}"
+
+
+       with_items: "{{ vedges }}"
+
+
+
+

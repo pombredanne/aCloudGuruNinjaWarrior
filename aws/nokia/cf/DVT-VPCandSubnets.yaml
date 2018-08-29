@@ -457,6 +457,7 @@ Outputs:
   #  Value: !Join [',', [!Ref RouteTablePublic, !Ref RouteTableBPublic]]
   #  Export:
   #    Name: !Sub '${AWS::StackName}-RouteTablesPublic'
+<<<<<<< HEAD
  # SubnetA1:
  #   Description: 'Subnet A1.'
  #   Value: !Ref SubnetA1
@@ -477,6 +478,28 @@ Outputs:
  #   Value: !Ref RouteTableA2
  #   Export:
  #     Name: !Sub '${AWS::StackName}-RouteTableA2'
+=======
+  SubnetA1:
+    Description: 'Subnet A1.'
+    Value: !Ref SubnetA1
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetA1'
+  RouteTableA1:
+    Description: 'Route table A1.'
+    Value: !Ref RouteTableA1
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableA1'
+  SubnetA2:
+    Description: 'Subnet A2.'
+    Value: !Ref SubnetA2
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetA2'
+  RouteTableA2:
+    Description: 'Route table A2.'
+    Value: !Ref RouteTableA2
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTableA2'
+>>>>>>> 560652ef4fac4615bfcb58e9b347fea5c1882613
   SubnetB1:
     Description: 'Subnet B1.'
     Condition: MultiAZ
