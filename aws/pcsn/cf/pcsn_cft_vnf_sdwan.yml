@@ -1,0 +1,487 @@
+#################################################################################
+#pcsn_vnf_sdwan
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy SDWAN to PCSN.'
+
+#future - add in support for multi-AZ solution when available 
+#future - support keypairs
+#future - will need to prove nokia sdwan auto bootsrapping was won't be manually boostrapping in this process 
+#future - 
+#future - add instance termination protection
+
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+  SubnetWAN:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+  SubnetLAN:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+  NaclWAN:
+    Description: NACL wan side
+    Type: String
+  NaclLAN:
+    Description: NACL lan side
+    Type: String
+  InstanceName:
+    Description: Instance Name
+    Type: String
+  UserDataNokia:
+    Description: Bootstrap data for Nokia
+    Type: String
+    Default: false
+  UserDataCisco:
+    Description: Bootstrap data for Cisco
+    Type: String
+    Default: false
+  SDWANType:
+    Description: SDWAN Type - Cisco or Nokia
+    Type: String
+    Default: false
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  FlavourPerformance:
+    Description: Performance flavour
+    Type: String
+    Default: false
+  PlacementGroup:
+    Description: Placement group
+    Type: String
+  MiscDevTest:
+    Description: Flag to trigger specific devtest actions
+    Type: String
+    Default: false
+  MiscDevTestNokiaSDWANLANIf:
+    Description: 'For dev/test only. existing lan network interface. So can use pre-boostrapped image'
+    Type: String
+    Default: 'false'
+  MiscDevTestNokiaSDWANAMI:
+    Description: 'For dev/test only. ami image. So can use pre-boostrapped image'
+    Type: String
+    Default: 'false'
+
+#################################################################################
+#Conditions
+#################################################################################
+
+Conditions:
+  CiscoSDWAN: !Equals [ !Ref SDWANType, 'Cisco' ]
+  NokiaSDWAN: !Equals [ !Ref SDWANType, 'Nokia' ]
+  DevTest: !Equals [ !Ref MiscDevTest, 'true' ]
+
+
+#################################################################################
+#AMI mappings
+#################################################################################
+
+#future extend to all regions
+#future get correct instance types for perf sizing
+Mappings:
+  CiscoAMIMap:
+    us-east-1:
+      "ami": "ami-a00ad1dd"
+    eu-west-2:
+      "ami": "ami-1b8e6f7c"
+  CiscoInstanceTypeMap:
+    High:
+#future - get recommended instance types from cisco
+      "type": "c4.large"
+    Restricted:
+      "type": "c4.large"
+  NokiaAMIMap:
+    us-east-1:
+      "ami": "ami-ff98f380"
+    eu-west-2:
+      "ami": "ami-e2a54385"
+  NokiaInstanceTypeMap:
+    High:
+#note - Enhanced networking with the Elastic Network Adapter (ENA) is required for the 'c5.large'  
+      "type": "c4.large"
+    Restricted:
+      "type": "m4.large"
+
+
+Resources:
+#################################################################################
+#Cisco vedge Resources
+#################################################################################
+  vedgeInstance:
+    Type: AWS::EC2::Instance
+    Condition: CiscoSDWAN
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs:
+          VolumeSize: 8
+          VolumeType: gp2
+          DeleteOnTermination: true
+      - DeviceName: "/dev/sdb"
+        Ebs:
+          VolumeSize: 20
+          VolumeType: gp2
+          DeleteOnTermination: true
+      InstanceType: !FindInMap [CiscoInstanceTypeMap, !Ref FlavourPerformance, "type"]
+      ImageId:  !FindInMap [CiscoAMIMap, !Ref "AWS::Region", "ami"]
+      PlacementGroupName: !Ref PlacementGroup 
+      UserData: 
+        Fn::Base64: !Ref UserDataCisco
+#        Fn::Base64:
+#           Fn::Join:
+#           - ''
+#           - - "#cloud-config\nvinitparam:\n"
+#             - !Sub "- otp : ${UserDataCisco1}\n"
+#             - !Sub "- vbond : ${UserDataCisco2}\n"
+#             - !Sub "- uuid : ${UserDataCisco3}\n"
+#             - !Sub "- org : ${UserDataCisco4}"
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref vedgeWANENI
+        DeviceIndex: '0'
+      - NetworkInterfaceId: !Ref vedgeLANENI
+        DeviceIndex: '1'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+ 
+  vEdgeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CiscoSDWAN
+    Properties:
+      VpcId: !Ref VPCID
+      GroupName: !Sub '${InstanceName}_sg'
+      GroupDescription: "Security group for Cisco SDWAN instance"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+        Description: "vedge ssg access"
+      - IpProtocol: udp
+        FromPort: '12346'
+        ToPort: '12346'
+        CidrIp: 0.0.0.0/0
+        Description: "IPSEC from remote endpoints"
+      - IpProtocol: '1'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+        Description: "Ping test"
+
+  #LAN Network Interface
+  vedgeLANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: CiscoSDWAN
+    DependsOn: vEdgeSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetLAN
+      GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_lan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+
+  #WAN Network Interface
+  vedgeWANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: CiscoSDWAN
+    DependsOn: vEdgeSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetWAN
+      GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_wan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+  #EIP
+  vEdgeEIP:
+    Type: AWS::EC2::EIP
+    Condition: CiscoSDWAN
+    Properties:
+      Domain: 'vpc'
+#cf currently doesn't support tags on EIP
+#        Tags:
+#        - Key: Name
+#          Value: !Sub '${InstanceName}_wan_eip'
+#        - Key: BT-PCSN-RESOURCE
+#          Value: true
+#        - Key: Created
+#          Value: !Ref Created
+
+  vedgeEIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: CiscoSDWAN
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - vEdgeEIP
+        - AllocationId
+      NetworkInterfaceId:
+        Ref: vedgeWANENI
+
+#################################################################################
+#Nokia NSG Resources
+#################################################################################
+  nsgInstance:
+    Type: AWS::EC2::Instance
+    Condition: NokiaSDWAN
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          #Use default primary volume size for now - may need to increase later.
+          VolumeSize: 24
+          VolumeType: gp2
+          DeleteOnTermination: true
+      InstanceType: !FindInMap [NokiaInstanceTypeMap, !Ref FlavourPerformance, "type"]
+      ImageId: !If [ DevTest,  !Ref MiscDevTestNokiaSDWANAMI,  !FindInMap [NokiaAMIMap, !Ref "AWS::Region", "ami"]   ]
+      #                                           ImageId:  !FindInMap [CiscoAMIMap, !Ref "AWS::Region", "ami"]
+
+      PlacementGroupName: !Ref PlacementGroup 
+      UserData: 
+        Fn::Base64: !Ref UserDataNokia
+#           Fn::Join:
+#           - ''
+#           - - "#aws-config:\naws_image: true\nnuage_nsg:\n"
+#             - !Sub "  ProxyFQDN : ${UserDataNokia1}\n"
+#             - !Sub "  enterpriseID : ${UserDataNokia2}\n"
+#             - !Sub "  other : ${UserDataNokia3}\n"
+#             - !Sub "  other : ${UserDataNokia4}"
+
+      NetworkInterfaces:
+      - NetworkInterfaceId: !If [ DevTest, !Ref MiscDevTestNokiaSDWANLANIf , !Ref nsgWANENI]
+        DeviceIndex: '0'
+      - NetworkInterfaceId: !Ref nsgLANENI
+        DeviceIndex: '1'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+ 
+  nsgSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: NokiaSDWAN
+    Properties:
+      VpcId: !Ref VPCID
+      GroupName: !Sub '${InstanceName}_sg'
+      GroupDescription: "Security group for Cisco SDWAN instance"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+        Description: "To bootstrap the NSG"
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+        Description: "To access NSG for diagnostics"
+      - IpProtocol: tcp
+        FromPort: '893'
+        ToPort: '893'
+        CidrIp: 0.0.0.0/0
+        Description: "For administrative access to NSG"
+      - IpProtocol: '50'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+        Description: "ESP from remote endpoints"
+      - IpProtocol: udp
+        FromPort: '5770'
+        ToPort: '5770'
+        CidrIp: 0.0.0.0/0
+        Description: "IPSEC from remote endpoints"
+      - IpProtocol: '50'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+        Description: "GRE from remote endpoints"
+      - IpProtocol: udp
+        FromPort: '4789'
+        ToPort: '4789'
+        CidrIp: 0.0.0.0/0
+        Description: "VXLAN from remote endpoints"
+      - IpProtocol: udp
+        FromPort: '4500'
+        ToPort: '4500'
+        CidrIp: 0.0.0.0/0
+        Description: "IPSEC from remote endpoints"
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+        Description: "Admin"
+      - IpProtocol: '1'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+        Description: "Ping test"
+
+  #future - just proving concept here. for production need to add wan and lan nacl entries for all nsgvedge ports.Just allow all outbound ? or allow ephermal port range plus specific ports ?
+  #nsgAclEntryWanIn1:
+  #  Type: 'AWS::EC2::NetworkAclEntry'
+  #  Properties:
+  #    NetworkAclId: !Ref NaclWAN
+  #    RuleNumber: 99
+  #    Protocol: -1
+  #    RuleAction: deny
+  #    Egress: false
+  #    CidrBlock: '0.0.0.0/0'
+  #nsgAclEntryWanOut1:
+  #  Type: 'AWS::EC2::NetworkAclEntry'
+  #  Properties:
+  #    NetworkAclId: !Ref NaclWAN
+  #    RuleNumber: 99
+  #    Protocol: -1
+  #    RuleAction: deny
+  #    Egress: true
+  #    CidrBlock: '0.0.0.0/0'
+  #nsgAclEntryWanIn2:
+  #  Type: 'AWS::EC2::NetworkAclEntry'
+  #  Properties:
+  #    NetworkAclId: !Ref NaclWAN
+  #    RuleNumber: 98
+  #    Protocol: 6
+  #    RuleAction: allow
+  #    Egress: false
+  #    CidrBlock: '0.0.0.0/0'
+  #    PortRange:
+  #       From: '80'
+  #       To: '80'
+  #nsgAclEntryWanOut2:
+  #  Type: 'AWS::EC2::NetworkAclEntry'
+  #  Properties:
+  #    NetworkAclId: !Ref NaclWAN
+  #    RuleNumber: 98
+  #    Protocol: 6
+  #    RuleAction: allow
+  #    Egress: true
+  #    CidrBlock: '0.0.0.0/0'
+  #    PortRange:
+  #       From: '80'
+  #       To: '80'
+
+
+
+  #LAN Network Interface
+  nsgLANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: NokiaSDWAN
+    DependsOn: nsgSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetLAN
+      GroupSet: [!GetAtt nsgSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_lan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+
+  #WAN Network Interface
+  nsgWANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: NokiaSDWAN
+    DependsOn: nsgSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetWAN
+      GroupSet: [!GetAtt nsgSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_wan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+  #EIP
+  nsgEIP:
+    Type: AWS::EC2::EIP
+    Condition: NokiaSDWAN
+    Properties:
+      Domain: 'vpc'
+#cf currently doesn't support tags on EIP
+#        Tags:
+#        - Key: Name
+#          Value: !Sub '${InstanceName}_wan_eip'
+#        - Key: BT-PCSN-RESOURCE
+#          Value: true
+#        - Key: Created
+#          Value: !Ref Created
+
+  nsgEIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: NokiaSDWAN
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - nsgEIP
+        - AllocationId
+      NetworkInterfaceId:
+        Ref: nsgWANENI
+
+#################################################################################
+#Outputs
+#################################################################################
+Outputs:
+  vedgeInstanceID:
+    Condition: CiscoSDWAN
+    Description: InstanceId of the newly created vedge instance
+    Value:
+      Ref: vedgeInstance
+  vedgeWANENI:
+    Condition: CiscoSDWAN
+    Description: WAN ENI Id of the newly created vedge instance
+    Value:
+      Ref: vedgeWANENI
+  vedgeLANENI:
+    Condition: CiscoSDWAN
+    Description: LAN ENI Id of the newly created vedge instance
+    Value:
+      Ref: vedgeLANENI
+  nsgInstanceID:
+    Condition: NokiaSDWAN
+    Description: InstanceId of the newly created nsg instance
+    Value:
+      Ref: nsgInstance
+  nsgWANENI:
+    Condition: NokiaSDWAN
+    Description: WAN ENI Id of the newly created nsg instance
+    Value:
+      Ref: nsgWANENI
+  nsgLANENI:
+    Condition: NokiaSDWAN
+    Description: LAN ENI Id of the newly created nsg instance
+    Value:
+      Ref: nsgLANENI
+

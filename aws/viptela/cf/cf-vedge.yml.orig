@@ -1,0 +1,71 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create vedge'
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  AMI:
+    Description: Enter AMI-ID for Instance
+    Type: AWS::EC2::Image::Id
+    ConstraintDescription: Security Groups already created
+  InstanceType:
+    Description: NSG EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+    - t2.small
+    - t2.medium
+    - m4.large
+    - c3.8xlarge
+    - c4.8xlarge
+    - g2.8xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  InstanceName:
+    Description: Enter Name for Instance
+    ConstraintDescription: Instance Name
+    Type: String
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Ref: InstanceName
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      ImageId:
+        Ref: AMI
+      BlockDeviceMappings:
+      -
+          DeviceName: /dev/sda1
+          Ebs:
+            DeleteOnTermination: True
+            VolumeSize: 50
+#Example of getting custom info from lambda function. Probably need to add depends on to make sure this is done last
+#  NetworkInfo:
+#    Type: Custom::NetworkInfo
+#    Properties:
+#      ServiceToken: "arn:aws:lambda:eu-west-2:813970735459:function:getNetworkInfo"
+#      Region: !Ref "AWS::Region"
+#      Instance: !Ref EC2Instance
+
+Outputs:
+  InstanceID:
+    Description: The Instance ID
+    Value: !Ref EC2Instance
+#For test only. Actually need to get network interface (eth1) resource and get primary private IP address. Also get EIP resource for static public address 
+  PublicIP:
+    Description: The Instance ID
+    Value: !GetAtt EC2Instance.PublicIp
+  PrivateIP:
+    Description: The Instance ID
+    Value: !GetAtt EC2Instance.PrivateIp
+#  MACAddress:
+#    Description: ENI MAC address
+#    Value: !GetAtt NetworkInfo.MACAddress
+

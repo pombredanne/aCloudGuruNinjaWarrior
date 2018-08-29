@@ -1,0 +1,11 @@
+#Having issues with gcp sdk install, running install.sh. Looks to be python verison error. Get same error as here. Updating apth or creating alisa doesn't seem to help 
+#https://stackoverflow.com/questions/50992705/cant-install-gcloud-on-amazon-linux-invalid-syntax
+
+
+#Once have got install working there is an intitial example under autonetdeploy-startup with config file, template and schema.  
+#Credentials are provided by the service account key file (json). Need to load up here and run set credentials script providing json file as input
+
+
+#Example tutorial here - https://cloud.google.com/solutions/automated-network-deployment-overview
+#Best practice info here - https://cloud.google.com/deployment-manager/docs/best-practices/
+#Quickstart here - https://cloud.google.com/pubsub/docs/quickstart-cli 

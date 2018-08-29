@@ -1,0 +1,39 @@
+#- tasks:
+  - name: Display input params
+    debug:
+      msg: "Input params are: region={{ region }} , ami={{ ami }}, keyPair={{ keyPair }}, instanceType={{ instanceType }}, vnfName={{ vnfName }}"
+  - name: Create resource group
+    azure_rm_resourcegroup:
+      state: "{{ vnfState }}"
+      name: "arm-{{ env }}-{{ vnf }}-{{ vnfName }}"
+      location: "{{ region }}"
+    tags:
+      vnf: "{{ vnf }}"
+      env: "{{ env }}"
+  - name: Deploy to Azure
+    azure_rm_deployment:
+      deployment_name: "arm-{{ env }}-{{ vnf }}-{{ vnfName }}"
+      state: "{{ vnfState }}"
+      resource_group_name: sdwan-rgplay
+      template_link: "arm-{{ vnf }}.json"
+      parameters:
+         AMI:
+            value: "{{ ami }}"
+         KeyName:
+            value: "{{ keyPair }}"
+         InstanceType:
+            value: "{{ instanceType }}"
+         InstanceName:
+            value: "{{ vnfName }}"
+    register: deployment
+
+#Need to setup arm template to return output params required - see https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-manager-templates-outputs
+#  - name: Display output params
+#    debug:
+#      msg: "Output stack: {{stack.stack_outputs}}"
+#      msg: "Instance id: {{stack.stack_outputs.InstanceID}}, PrivateIP: {{ stack.stack_outputs.PrivateIP }}, PublicIP: {{ stack.stack_outputs.PublicIP }}"
+#    when: vnfState == "present"
+
+#
+#    - name: Configure vmanage controller
+

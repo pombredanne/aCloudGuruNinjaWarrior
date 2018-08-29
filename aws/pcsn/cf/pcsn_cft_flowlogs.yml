@@ -1,0 +1,107 @@
+#################################################################################
+#pcsn_flowlogs
+#################################################################################
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "PCSN flowlogs template"
+
+
+Parameters:
+  SubnetA1:
+    Type: String
+  SubnetA2:
+    Type: String
+  SubnetA3:
+    Type: String
+  SubnetA4:
+    Type: String
+  SubnetB1:
+    Type: String
+  SubnetB2:
+    Type: String
+  SubnetB3:
+    Type: String
+  SubnetB4:
+    Type: String
+  FlavourResilience:
+    Type: String
+  NetworkVPCID:
+    Type: AWS::EC2::VPC::Id
+  MiscRegionInstance:
+    Type: Number
+
+Conditions:
+  MultiAZ: !Equals [!Ref FlavourResilience, 'High Availability' ]
+
+Resources:
+
+#Future - Make flow logs configurable per vnf and even per interface. For now just make it on/off across subnets.
+  FlowLogsSubnetA1:
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}a1_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetA1
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetA2:
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}a2_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetA2
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetA3:
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}a3_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetA3
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetA4:
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}a4_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetA4
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetB1:
+    Type: "AWS::EC2::FlowLog"
+    Condition: MultiAZ
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}b1_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetB1
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetB2:
+    Type: "AWS::EC2::FlowLog"
+    Condition: MultiAZ
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}b2_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetB2
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetB3:
+    Type: "AWS::EC2::FlowLog"
+    Condition: MultiAZ
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}b3_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetB3
+      ResourceType : Subnet
+      TrafficType : ALL
+  FlowLogsSubnetB4:
+    Type: "AWS::EC2::FlowLog"
+    Condition: MultiAZ
+    Properties:
+      DeliverLogsPermissionArn : !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+      LogGroupName : !Sub 'btpcsn_fl_${AWS::Region}b4_${MiscRegionInstance}_${NetworkVPCID}'
+      ResourceId : !Ref SubnetB4
+      ResourceType : Subnet
+      TrafficType : ALL
+
+

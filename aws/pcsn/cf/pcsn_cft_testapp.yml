@@ -1,0 +1,187 @@
+##################################################################################
+#pcsn_vnf_testapp
+##################################################################################
+
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy testApp to PCSN.'
+
+#future - will need ami per region. so need region mapping here. will need to make public. When creating ami could use copy image
+#command to create image in every region. but how to keep same ami-id so can have same region map. Can't keep ami id so looks like
+#will need  python script to get ami id for each region, once re-registered and then update cf template with new region-ami mapping 
+
+##################################################################################
+#Inputs
+##################################################################################
+
+Parameters:
+  VPCID:
+    Description: 'VPC ID'
+    Type: AWS::EC2::VPC::Id
+  SubnetTestID:
+    Description: 'Subnet ID'
+    Type: AWS::EC2::Subnet::Id
+  InstanceNameTest:
+    Description: 'Instance name'
+    Type: String
+  RequestQueue:
+    Description: 'Queue to send test requests to'
+    Type: String
+  ResponseQueue:
+    Description: 'Queue to get test responses from'
+    Type: String
+  Created:
+    Description: 'Timestamp of when created'
+    Type: String
+
+#future - may need to add jump server to this stack
+#future - create key pair for test instance
+
+####################################################
+#AMI map
+####################################################
+
+#future extend to all regions
+#add in actual ami for test app - once created
+Mappings:
+  AMIMap:
+    us-east-1:
+      "testapp": "ami-ff98f380"
+    eu-west-2:
+      "testapp": "ami-e2a54385"
+
+
+####################################################
+#Test client/server resources
+####################################################
+
+Resources:
+  InstanceTest:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+#future - Use default primary volume size for now - may need to increase later. 
+#         VolumeSize: 24
+#         VolumeType: gp2
+#future - make instance type configurable
+          DeleteOnTermination: true 
+      InstanceType: t2.small
+      ImageId: !FindInMap [AMIMap, !Ref "AWS::Region", "testapp"]
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref NetworkENITest 
+        DeviceIndex: '0'
+      Tags:
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Name
+        Value: !Ref InstanceNameTest
+      - Key: Created
+        Value: !Ref Created
+ 
+  SecurityGroupTest:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: 'Security group for BT PCSN test application'
+        GroupName: !Sub '${InstanceNameTest}_sg'
+        VpcId: !Ref VPCID 
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '3389'
+          ToPort: '3389'
+          CidrIp: 0.0.0.0/0
+          Description: "RDP access"
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+          Description: "SSH access"
+        - IpProtocol: '1'
+          FromPort: '0'
+          ToPort: '0'
+          CidrIp: 0.0.0.0/0
+          Description: "Ping test"
+
+          
+  NetworkENITest:
+        Type: AWS::EC2::NetworkInterface
+        DependsOn: SecurityGroupTest
+        Properties:
+           SubnetId: !Ref SubnetTestID
+           GroupSet: [!Ref 'SecurityGroupTest']
+           SourceDestCheck: 'false'
+           Tags:
+           - Key: Name
+             Value: !Sub '${InstanceNameTest}_eni'
+           - Key: BT-PCSN-RESOURCE
+             Value: true
+           - Key: Created
+             Value: !Ref Created
+
+#future - restrict external access by routing rule (in updaterouting function) 
+  TestAppEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+           Domain: 'vpc'
+#cf doesn't currently support tags for eip
+#           Tags:
+#           - Key: Name
+#             Value: !Sub '${InstanceNameTest}_eip'
+#           - Key: BT-PCSN-RESOURCE
+#             Value: true
+#           - Key: Created
+#             Value: !Ref Created
+
+  EIPAssoc:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            AllocationId:
+               Fn::GetAtt:
+               - TestAppEIP
+               - AllocationId
+            NetworkInterfaceId: !Ref NetworkENITest 
+
+#future add params such as dead letter queue, long polling etc
+  RequestTestQueue:
+     Type: AWS::SQS::Queue
+     Properties: 
+        QueueName: !Ref RequestQueue
+#cf doesn't currently support tags for sqs
+#        Tags:
+#        - Key: Name
+#          Value: !Sub '${InstanceNameTest}_sqsreq'
+#        - Key: BT-PCSN-RESOURCE
+#          Value: true
+#        - Key: Created
+#          Value: !Ref Created
+  ResponseTestQueue: 
+     Type: AWS::SQS::Queue
+     Properties: 
+        QueueName: !Ref ResponseQueue
+#cf doesn't currently support tags for sqs
+#        Tags:
+#        - Key: Name
+#          Value: !Sub '${InstanceNameTest}_sqsresp'
+#        - Key: BT-PCSN-RESOURCE
+#          Value: true
+#        - Key: Created
+#          Value: !Ref Created
+
+ 
+
+####################################################
+#Outputs
+####################################################
+
+Outputs:
+  InstanceIdTest:
+    Description: InstanceId of the newly created Test instance
+    Value:
+      Ref: InstanceTest
+  NetworkENITest:
+    Description: ENI of the newly created Test instance
+    Value:
+      Ref: NetworkENITest
+
+

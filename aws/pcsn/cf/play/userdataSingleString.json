@@ -1,0 +1,6 @@
+[
+  {
+    "ParameterKey": "UserDataTest",
+    "ParameterValue": "#cloud-config\nvinitparam:\n- otp : 35aa7cb860b4425ce30838684a3f0ebc\n- vbond : vbond-259910.viptela.net\n- uuid : d30830d9-8f05-45d6-84e7-452e530af4d4\n- org : BT WNBA - 20446"
+  } 
+]

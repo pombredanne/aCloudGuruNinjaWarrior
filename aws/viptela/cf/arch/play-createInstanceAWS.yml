@@ -1,0 +1,33 @@
+---
+- name: "Deploy vedge" 
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars:
+    AMI: "ami-e2a54385"
+    KeyName: "nsgvkp1"
+    InstanceType: "t2.small"
+
+  tasks:
+    - name: Deploy vedge to AWS
+      cloudformation:
+        stack_name: "vedgeTestStack"
+        region: "{{region}}"
+#        region: "eu-west-2"
+        state: "present"
+        template: "cf-vedge.yml"
+        template_parameters:
+           AMI: "ami-e2a54385"
+           KeyName: "nsgvkp1"
+           InstanceType: "{{ InstanceType }}"
+           InstanceName: "vedgetest"
+        tags:
+           vnf: "vedge"
+           env: "test"
+      register: stack
+
+
+#
+#    - name: Configure vmanage controller
+

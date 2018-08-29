@@ -1,0 +1,418 @@
+#################################################################################
+#pcsn_vnf_others
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Other VNFs.'
+
+#future - add in support for multi-AZ solution when available 
+#future - support keypairs
+#future - add instance termination protection
+#
+#Note this is just an example of patterns.
+#Fortinet and Riverbed sections
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+  SubnetWAN:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+  SubnetLAN:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+  NaclWAN:
+    Description: NACL wan side
+    Type: String
+  NaclLAN:
+    Description: NACL lan side
+    Type: String
+  InstanceName:
+    Description: Instance Name
+    Type: String
+  UserData:
+    Description: Bootstrap data
+    Type: String
+    Default: false
+  VNFType:
+    Description: VNF Type
+    Type: String
+    Default: false
+  DeploymentType:
+    Description: Deployment - Fixed or Scaled
+    Type: String
+    Default: false
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  DevTest:
+    Description: Flag to trigger specific devtest actions
+    Type: String
+    Default: false
+  FlavourPerformance:
+    Description: Performance flavour
+    Type: String
+    Default: false
+  PlacementGroup:
+    Description: Placement group
+    Type: String
+#################################################################################
+#Conditions
+#################################################################################
+
+Conditions:
+  FortinetFixed: !And [ !Equals [ !Ref VNFType, 'Fortinet' ] , !Equals [ !Ref DeploymentType, 'Fixed' ]   ]
+  FortinetScaled: !And [ !Equals [ !Ref VNFType, 'Fortinet' ] , !Equals [ !Ref DeploymentType, 'Scaled' ]  ]
+  Fortinet: !Equals [ !Ref VNFType, 'Fortinet' ]
+
+#tbd - Riverbed
+
+#################################################################################
+#AMI mappings
+#################################################################################
+
+#future extend to all regions
+#future get correct instance types for perf sizing
+Mappings:
+#tbd - add in routing vm ami
+  FortinetAMIMap:
+    us-east-1:
+      "ami": "ami-a00ad1dd"
+    eu-west-2:
+      "ami": "ami-e2a54385"
+  FortinetInstanceTypeMap:
+    High:
+      "type": "c4.large"
+    Restricted:
+#note only instance types which support 3 interfaces can be used
+      "type": "c4.large"
+
+
+#future - add in Riverbed
+
+
+Resources:
+#################################################################################
+#Fortinet fixed - using routing vm to simulate fw
+#################################################################################
+  fortinetInstance:
+    Type: AWS::EC2::Instance
+    Condition: FortinetFixed
+    Properties:
+      BlockDeviceMappings:
+#tbd - add in correct storage
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          #Use default primary volume size for now - may need to increase later.
+          VolumeSize: 8
+          VolumeType: gp2
+          DeleteOnTermination: true
+
+      InstanceType: !FindInMap [FortinetInstanceTypeMap, !Ref FlavourPerformance, "type"]
+      ImageId:  !FindInMap [FortinetAMIMap, !Ref "AWS::Region", "ami"]
+      PlacementGroupName: !Ref PlacementGroup 
+      UserData: 
+        Fn::Base64: !Ref UserData
+#           Fn::Join:
+#           - ''
+#           - - "#cloud-config\ndummy params:\n"
+#             - !Sub "- placeholder1 : ${UserData1}\n"
+#             - !Sub "- placeholder2 : ${UserData2}\n"
+#             - !Sub "- placeholder3 : ${UserData3}\n"
+#             - !Sub "- placeholder4 : ${UserData4}"
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref fortinetWANENI
+        DeviceIndex: '0'
+      - NetworkInterfaceId: !Ref fortinetLANENI
+        DeviceIndex: '1'
+      - NetworkInterfaceId: !Ref fortinetMgtENI
+        DeviceIndex: '2'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+ 
+  fortinetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: Fortinet
+    Properties:
+      VpcId: !Ref VPCID
+      GroupName: !Sub '${InstanceName}_sg'
+      GroupDescription: "Security group for Fortinet"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+        Description: "ssh access"
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+        Description: "http access"
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+        Description: "https access"
+      - IpProtocol: '1'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+        Description: "Ping test"
+
+  #LAN Network Interface
+  fortinetLANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: FortinetFixed
+    DependsOn: fortinetSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetLAN
+      GroupSet: [!GetAtt fortinetSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_lan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+
+  #WAN Network Interface
+  fortinetWANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: FortinetFixed
+    DependsOn: fortinetSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetWAN
+      GroupSet: [!GetAtt fortinetSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_wan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+  #Mgt Network Interface
+  fortinetMgtENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: FortinetFixed
+    DependsOn: fortinetSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetLAN
+      GroupSet: [!GetAtt fortinetSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_mgt_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+  
+#note - for now asumming fw always behind sdwan wan so eip for mgt only
+  #EIP
+  fortinetMgtEIP:
+    Type: AWS::EC2::EIP
+    Condition: FortinetFixed
+    Properties:
+      Domain: 'vpc'
+
+  fortinetMgtEIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: FortinetFixed
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - fortinetMgtEIP
+        - AllocationId
+      NetworkInterfaceId:
+        Ref: fortinetMgtENI
+
+#################################################################################
+#Fortinet Autoscaling. JUST FOR INVESTIGATION AT MOMENT
+#################################################################################
+#future - some update to this; instancetype map for AS,
+#note - good info here about how to attach addition enis to instanca. not out of the box. have to trigger a lambda routine to do so.
+#https://aws.amazon.com/premiumsupport/knowledge-center/attach-second-eni-auto-scaling/
+
+#  fortinetASALaunchConfig:
+#    Type: AWS::AutoScaling::LaunchConfiguration
+#    Condition: FortinetScaled
+#    Properties:
+#      LaunchConfigurationName: !Sub '${InstanceName}_lc'
+#      ImageId:  !FindInMap [FortinetAMIMap, !Ref "AWS::Region", "ami"]
+#      SecurityGroups: [!GetAtt fortinetSecurityGroup.GroupId]
+#      InstanceType: !FindInMap [FortinetInstanceTypeMap, !Ref FlavourPerformance, "type"]
+#      BlockDeviceMappings:
+#      - DeviceName: "/dev/xvda"
+#        Ebs:
+#          VolumeSize: 8
+#          VolumeType: gp2
+#          DeleteOnTermination: true
+#      UserData:
+#        Fn::Base64:
+#          Fn::Join:
+#          - ''
+#          - - "#cloud-config\ndummy params:\n"
+#            - !Sub "- placeholder1 : ${UserData1}\n"
+#            - !Sub "- placeholder2 : ${UserData2}\n"
+#            - !Sub "- placeholder3 : ${UserData3}\n"
+#            - !Sub "- placeholder4 : ${UserData4}"
+#
+#  fortinetASGroup:
+#    Type: AWS::AutoScaling::AutoScalingGroup
+#    Condition: FortinetScaled
+#    Properties:
+#      AvailabilityZones: !Select [0, !GetAZs '']
+#      VPCZoneIdentifier: [!Ref SubnetWAN]
+#      AutoScalingGroupName: !Ref fortinetASALaunchConfig
+#      LaunchConfigurationName: !Sub '${InstanceName}_asg'
+#      PlacementGroupName: !Ref PlacementGroup
+#      Cooldown: 5
+#      MinSize: '1'
+#      MaxSize: '5'
+#      LoadBalancerNames: !Ref LB
+#      Tags:
+#      - Key: Name
+#        Value: !Sub '${InstanceName}_asg'
+#      - Key: BT-PCSN-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref Created
+
+#  fortinetWANLoadBalancer:
+#    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+#    Properties:
+#      AvailabilityZones: !Select [0, !GetAZs '']
+#future - both A and B subnets for HA
+#      Subnets: [!Ref SubnetWAN]
+#
+#      Type: network
+#      Scheme: internal
+#      LoadBalancerName: !Sub '${InstanceName}_lb'
+#      Listeners:
+#      - LoadBalancerPort: '80'
+#        Protocol: TCP
+#      HealthCheck:
+#        HealthyThreshold: '3'
+#        UnhealthyThreshold: '5'
+#        Interval: '30'
+#        Timeout: '5'
+
+
+#this hook is required to add additional network interface (wan and lan) to instance as can't do in as group
+#  fortinetASLifecycleTermHook: 
+#    Type: AWS::AutoScaling::LifecycleHook
+#    Condition: FortinetScaled
+#    Properties: 
+#      AutoScalingGroupName: !Ref: fortinetASGroup
+#      LifecycleTransition: "autoscaling:EC2_INSTANCE_TERMINATING"
+#      NotificationTargetARN: !Ref fortinetASNotifySNSTerm
+#      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+#  fortinetASLifecycleLaunchHook: 
+#    Type: AWS::AutoScaling::LifecycleHook
+#    Condition: FortinetScaled
+#    Properties: 
+#      AutoScalingGroupName: !Ref: fortinetASGroup 
+#      LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
+#      NotificationTargetARN: !Ref fortinetASNotifySNSLaunch
+#      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+
+
+#  fortinetASNotifySNSLaunch: 
+#    Condition: FortinetScaled
+#    Type: AWS::SNS::Topic
+#    Properties: 
+#    Subscription: 
+#      - 
+#        Endpoint: 'lambda arn would go here' 
+#        Protocol: "lambda"
+#    TopicName: '${InstanceName}_snsLaunch'
+#  fortinetASNotifySNSTerm: 
+#    Condition: FortinetScaled
+#    Type: AWS::SNS::Topic
+#    Properties: 
+#    Subscription: 
+#      - 
+#        Endpoint: 'lambda arn would go here' 
+#        Protocol: "lambda"
+#    TopicName: '${InstanceName}_snsTerm'
+#future would also need to install lambda routine here that does the eni addition
+ 
+##################################################################################
+#Other means of accessing VNF for mangement purposes. JUST FOR INVESTIGATION AT MOMENT
+#################################################################################
+#
+#future -  make this as option and implement as child stack 
+ 
+#NAT gateway - can be used where VNF need internet access for updates but want to avoid general public access
+#put in public subnet (subnet1)
+#  fortinetNAT:
+#    Type: AWS::EC2::NatGateway
+#    Properties:
+#    AllocationId: !GetAtt fortinetNATEIP.AllocationId
+#    SubnetId: !Ref PublicSubnet
+#    Tags:
+#    - Key: foo
+#      Value: bar
+
+#  fortinetNATEIP:
+#    Type: AWS::EC2::EIP
+#    Properties:
+#      Domain: vpc
+
+#  fortinetNATRoute:
+#    Type: AWS::EC2::Route
+#    Properties:
+#      RouteTableId: !Ref WANRt
+#      DestinationCidrBlock: 0.0.0.0/0
+#      NatGatewayId: Ref: fortinetNAT
+
+#Jump server
+#probably implement as server in public subnet. call from foundation template as option 
+#alternatively put jump server in vnf wan subnet. Add security group rule only allowing ssh from jump server sg to vnf 
+
+#VPN
+#Create customer gateway - need asn and ip address. assume ipsec. ideally need 2 for resilience.
+#Create vpn gateway - assume ipsec
+#Create vpn connection - use reference to customer and vpn gateways. ideally need 2 for resilience. 1 to each customer gateway (note vpn is actually 2 tunnels for resilience)
+#can create in vnf subnet or public subnet 
+
+
+#################################################################################
+#Outputs
+#################################################################################
+Outputs:
+  fortinetInstanceID:
+    Condition: Fortinet
+    Description: InstanceId
+    Value:
+      Ref: fortinetInstance
+  fortinetWANENI:
+    Condition: Fortinet
+    Description: WAN ENI Id 
+    Value:
+      Ref: fortinetWANENI
+  fortinetLANENI:
+    Condition: Fortinet
+    Description: LAN ENI Id 
+    Value:
+      Ref: fortinetLANENI
+  fortinetMgtENI:
+    Condition: Fortinet
+    Description: LAN Mgt Id 
+    Value:
+      Ref: fortinetMgtENI
+

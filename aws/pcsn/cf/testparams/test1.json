@@ -1,0 +1,86 @@
+[
+        {
+            "ParameterKey": "NetworkVPCID", 
+            "ParameterValue": "vpc-8baebde2"
+        },
+        {
+            "ParameterKey": "NetworkAddressRange", 
+            "ParameterValue": "10.0.98"
+        },
+        {
+            "ParameterKey": "NetworkExternalAddressRanges", 
+            "ParameterValue": "172.92.10.0/24,172.11.11.0/24,172.11.12.0/24"
+        },
+        {
+            "ParameterKey": "NetworkInternalHostAddressRanges", 
+            "ParameterValue": "10.0.80.0/24,10.0.81.0/24"
+        },
+        {
+            "ParameterKey": "VNFServiceChain", 
+            "ParameterValue": "WAN<->Nokia SDWAN<->Fortinet<->Hosts"
+        },
+        {
+            "ParameterKey": "FlavourResilience", 
+            "ParameterValue": "SingleAZ"
+        },
+        {
+            "ParameterKey": "FlavourPerformance", 
+            "ParameterValue": "Restricted"
+        },
+        {
+            "ParameterKey": "VNFNokiaSDWANMonitor", 
+            "ParameterValue": "true"
+        },
+        {
+            "ParameterKey": "VNFNokiaSDWANMgtAddressRanges", 
+            "ParameterValue": "172.0.10.0/24,172.1.10.0/24"
+        },
+        {
+            "ParameterKey": "VNFNokiaSDWANUserData", 
+            "ParameterValue": "nuage_nsg:\n  proxyFQDN: connect01.agile.bt.com\n  enterpriseID: e9546af0-c9e0-4e17-b85f-1a45d0eb80cf\n  NSGatewayID: 166cb270-f5fc-4260-a0fe-1f4fcb5d61d4\n  NSGType: ANY\n  uplinks:\n  - name: port4\n    v4:\n  mode: static\n      static:\n        gw: 192.168.202.32\n        ip: 192.168.202.33\n        dns: 192.168.201.254\n        mask: 255.255.255.254\n      installermanaged: false\n  signature: QLEvc3PxqqHxWP1l++Yrvlp2gJiBgKlgLcc/dHCuR0AhrMuEYqTHHOTIU3/lwzmhCmCa5TzUCdq2vSdLBKiT0TDyJE/vQJDUAK6bg8hl+o0AmRDTKvkhM60/MVfQA/+7+QTqcqA4G2auXaFZo7drG1+wQolyI+F0HHj1nYVpYXzTzRXBXnNNma9IewQXwGubSm5tRlEKHB1i3/lxZN+RCIxvE9gCHa9yMzwZ6yzGqeYWt7AakgoePajkt1yrUXhpCtJRc75CYAFKubAW1h5jHupi3S3xjF531U58HZ6ZppqsSdqK+QtWW/y66oI2YbfhTfCAHs0KZcd2OlPU/aLv/g=="
+        },
+        {
+            "ParameterKey": "VNFFortinetMonitor", 
+            "ParameterValue": "true"
+        },
+        {
+            "ParameterKey": "VNFFortinetMgtAddressRanges", 
+            "ParameterValue": "172.0.10.0/24,172.1.10.0/24"
+        },
+        {
+            "ParameterKey": "VNFFortinetUserData", 
+            "ParameterValue": ""
+        },
+        {
+            "ParameterKey": "MiscFlowLogs", 
+            "ParameterValue": "true"
+        },
+        {
+            "ParameterKey": "MiscRegionInstance", 
+            "ParameterValue": "1"
+        },
+        {
+            "ParameterKey": "MiscDeployTestApp", 
+            "ParameterValue": "true"
+        },
+        {
+            "ParameterKey": "MiscDevTest", 
+            "ParameterValue": "false"
+        },
+        {
+            "ParameterKey": "MiscTimeStampCreate", 
+            "ParameterValue": "August82018"
+        },
+        {
+            "ParameterKey": "MiscTimeStampUpdate", 
+            "ParameterValue": "August82018"
+        },
+        {
+            "ParameterKey": "MiscDevTestNokiaSDWANLANIf", 
+            "ParameterValue": "eni-b2cb4ee6"
+        },
+        {
+            "ParameterKey": "MiscDevTestNokiaSDWANAMI", 
+            "ParameterValue": "ami-ee31c489"
+        }
+]

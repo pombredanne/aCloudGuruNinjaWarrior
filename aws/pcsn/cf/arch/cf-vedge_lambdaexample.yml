@@ -1,0 +1,21 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create vedge'
+Parameters:
+ AName:
+    Description: Test param
+    Type: String
+
+Resources:
+  NetworkInfo:
+    Type: Custom::NetworkInfo
+    Properties:
+      ServiceToken: "arn:aws:lambda:eu-west-2:813970735459:function:getNetworkInfo"
+      Region: !Ref "AWS::Region"
+      Instance: !Ref AName
+
+Outputs:
+  MACAddress:
+    Description: ENI MAC address
+    Value: !GetAtt NetworkInfo.MACAddress
+

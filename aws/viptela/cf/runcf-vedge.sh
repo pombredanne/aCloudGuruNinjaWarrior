@@ -1,0 +1,7 @@
+#!/bin/bash
+
+
+#aws cloudformation create-stack --region eu-west-2 --stack-name vEdgeProtoLon --template-body file://cf-vedge.yml --parameters ParameterKey=VPCID,ParameterValue=vpc-8baebde2 ParameterKey=SUBNETIDPUBLIC,ParameterValue=subnet-0fada374 ParameterKey=SUBNETIDPRIVATE,ParameterValue=subnet-ce0214b5 ParameterKey=KeyName,ParameterValue=nsgvkp1 ParameterKey=AMI,ParameterValue=ami-1b8e6f7c ParameterKey=InstanceType,ParameterValue=c4.large ParameterKey=InstanceName,ParameterValue=vEdge17.2.4 ParameterKey=BOOTOTP,ParameterValue=d5d953ccf7d0d301f50c04f04a9d1e9 ParameterKey=BOOTVBOND,ParameterValue=vbond-259910.viptela.net ParameterKey=BOOTUUID,ParameterValue=c7833570-8b14-4408-a4ce-662c1f7da2dc ParameterKey=BOOTORG,ParameterValue='BT WNBA - 20446'
+aws cloudformation create-stack --region us-east-1 --stack-name vEdgeProtoUse --template-body file://cf-vedge.yml --parameters ParameterKey=VPCID,ParameterValue=vpc-ec804197 ParameterKey=SUBNETIDPUBLIC,ParameterValue=subnet-36d69a6b ParameterKey=SUBNETIDPRIVATE,ParameterValue=subnet-37c28e6a ParameterKey=KeyName,ParameterValue=usensgkp ParameterKey=AMI,ParameterValue=ami-a00ad1dd ParameterKey=InstanceType,ParameterValue=c4.large ParameterKey=InstanceName,ParameterValue=vEdge17.2.4 ParameterKey=BOOTOTP,ParameterValue=d5d953ccf7d0d301f50c04f04a9d1e9 ParameterKey=BOOTVBOND,ParameterValue=vbond-259910.viptela.net ParameterKey=BOOTUUID,ParameterValue=c7833570-8b14-4408-a4ce-662c1f7da2dc ParameterKey=BOOTORG,ParameterValue='BT WNBA - 20446'
+
+

@@ -1,0 +1,146 @@
+#Autoscaling testing - test creation of aotuscaling group and load balancer
+################################################################################
+#tbd - add later
+#Parameters:
+
+Resources:
+
+  vnfASLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: vnflc
+      ImageId: ami-e2a54385
+      SecurityGroups: [sg-18b6f770]
+      InstanceType: t2.small
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeSize: 8
+          VolumeType: gp2
+          DeleteOnTermination: true
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "#cloud-config\ndummy params:\n"
+            - !Sub "- placeholder1 : \n"
+            - !Sub "- placeholder2 : \n"
+            - !Sub "- placeholder3 : \n"
+            - !Sub "- placeholder4 : "
+
+  vnfASGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: ["vnfWANLoadBalancer"] 
+    Properties:
+      LaunchConfigurationName: vnflc
+      AvailabilityZones: [!Select [0, !GetAZs ''], !Select [1, !GetAZs ''] ]
+      VPCZoneIdentifier:  [subnet-0fada374,subnet-f06739bd]
+      AutoScalingGroupName: !Ref vnfASLaunchConfig
+#      PlacementGroupName: !Ref PlacementGroup
+      Cooldown: 5
+      MinSize: '1'
+      MaxSize: '5'
+      TerminationPolicies: ['OldestInstance']
+      #LoadBalancerNames: [vnflb]
+      TargetGroupARNs: [ !Ref vnfTargetGroup]
+      Tags:
+      - Key: Name
+        Value: vnfAutoScaleTest
+        PropagateAtLaunch: True
+#      - Key: BT-PCSN-RESOURCE
+#        Value: True
+#      - Key: Created
+#        Value: !Ref Created
+#
+#note - scaling policy could be... 
+#       simple increase based on alarm
+#       tracking metric target, as below
+#       step increase - choice of size increase based size of alarm breach.
+#       alarm based policies are triggered from cloudwatch alarm - see https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-autoscaling.html#scenario-as-policy
+#       for scaling polic examples see https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-policy.html
+  vnfASPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref vnfASGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 80
+
+  vnfWANLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+#future - both A and B subnets for HA
+      Subnets: [subnet-0fada374,subnet-f06739bd]
+      Type: network
+      Scheme: internal
+      Name: vnflb
+
+  NLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref vnfTargetGroup
+      LoadBalancerArn: !Ref vnfWANLoadBalancer
+      Port: 80
+      Protocol: TCP
+
+  vnfTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+#hc timeout needs to be 10 for nlb and interval needs to be 10 or 30. Also healthy and unhealthy threshold count must be same
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 10 
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      #HealthCheckPath: /
+      Name: NLBTargetGroup
+      Port: 80
+      Protocol: TCP
+      VpcId: vpc-8baebde2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+
+#this hook is required to add additional network interface (wan and lan) to instance as can't do in as group
+  #fortinetASLifecycleTermHook: 
+    #Type: AWS::AutoScaling::LifecycleHook
+    #Condition: FortinetScaled
+    #Properties: 
+      #AutoScalingGroupName: !Ref: fortinetASGroup
+      #LifecycleTransition: "autoscaling:EC2_INSTANCE_TERMINATING"
+      #NotificationTargetARN: !Ref fortinetASNotifySNSTerm
+      #RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+  #fortinetASLifecycleLaunchHook: 
+    #Type: AWS::AutoScaling::LifecycleHook
+    #Condition: FortinetScaled
+    #Properties: 
+      #AutoScalingGroupName: !Ref: fortinetASGroup 
+      #LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
+      #NotificationTargetARN: !Ref fortinetASNotifySNSLaunch
+      #RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+
+
+  #fortinetASNotifySNSLaunch: 
+    #Condition: FortinetScaled
+    #Type: AWS::SNS::Topic
+    #Properties: 
+    #Subscription: 
+      #- 
+        #Endpoint: 'lambda arn would go here' 
+        #Protocol: "lambda"
+    #TopicName: '${InstanceName}_snsLaunch'
+  #fortinetASNotifySNSTerm: 
+    #Condition: FortinetScaled
+    #Type: AWS::SNS::Topic
+    #Properties: 
+    #Subscription: 
+      #- 
+        #Endpoint: 'lambda arn would go here' 
+        #Protocol: "lambda"
+    #TopicName: '${InstanceName}_snsTerm'
+#future would also need to install lambda routine here that does the eni addition
+ 
+

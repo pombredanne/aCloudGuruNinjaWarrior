@@ -1,0 +1,48 @@
+#Autoscaling testing - test creation of aotuscaling group and load balancer
+################################################################################
+#tbd - add later
+Parameters:
+  UserDataTest:
+    Type: String
+
+
+Resources:
+  InstanceTest:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: true
+      InstanceType: t2.small
+      ImageId: ami-e2a54385
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref NetworkENITest
+        DeviceIndex: '0'
+      UserData:
+        Fn::Base64:
+           Fn::Join:
+           - ''
+           - - "#cloud-config\nvinitparam:"
+             - "\n- otp : "
+             - !Select [0, !Split ["," , !Ref UserDataTest]]
+             - "\n- vbond : "
+             - !Select [1, !Split ["," , !Ref UserDataTest]]
+             - "\n- uuid : "
+             - !Select [2, !Split ["," , !Ref UserDataTest]]
+             - "\n- org : "
+             - !Select [3, !Split ["," , !Ref UserDataTest]]
+
+      #UserData: Fn:Base64 !Sub "config \n${UserDataTest}\n"
+      #UserData: Fn:Base64 !Sub "config \n${UserDataTest}\n"
+ #!Select [1, !Split [",", !Ref UserDataTest]]
+      #UserData: Fn::Base64 !Sub '#cloud_config\n${UserDataTest}\n'
+
+  NetworkENITest:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: subnet-0fada374
+      GroupSet: [sg-18b6f770]
+      SourceDestCheck: 'false'
+
+ 

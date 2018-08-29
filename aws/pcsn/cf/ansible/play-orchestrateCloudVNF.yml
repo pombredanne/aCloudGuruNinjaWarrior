@@ -1,0 +1,23 @@
+---
+- name: "Deploy Cloud VNFs" 
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars:
+    env: dev
+#vpc params would go here    vpc: tbc
+#sbunet params would go here    subnet: tbc
+#diagnostic params would go here    subnet: test/diagnostic server parames would go here
+    vnfs:
+      - {vnf: vedge, cloud: AWS, vnfState: absent, vnfName: vedgeeuw2, region: eu-west-2, ami: ami-e2a54385, keyPair: nsgvkp1, instanceType: t2.small}
+#      - {vnf: vedge, cloud: AWS, vnfState: absent, vnfName: vedgeuse1, region: us-east-1, ami: ami-ff98f380, keyPair: usensgkp, instanceType: t2.small}
+
+  tasks:
+#playbook to call foundaiton template will go here     - include: tasks-foundation.yml <params>
+     - include: tasks-{{ item.vnf }}{{ item.cloud }}.yml vnf="{{ item.vnf }}" vnfState="{{ item.vnfState }}" region="{{ item.region }}" keyPair="{{ item.keyPair }}" ami="{{ item.ami }}" vnfName="{{ item.vnfName }}" instanceType="{{ item.instanceType }}"
+       with_items: "{{ vnfs }}"
+
+
+
+

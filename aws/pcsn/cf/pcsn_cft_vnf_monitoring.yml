@@ -1,0 +1,95 @@
+##################################################################################
+#pcsn_vnf_monitoring
+##################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Generic VNF infastructure monitoring'
+#futures - note this is just an example of alarms for prototyping purposes. Will be expanded out 
+#futures - add in support for multi-AZ solution when available
+#futures - add in configurable including thresholds, perdiods, actions etc
+#
+##################################################################################
+#Inputs
+#################################################################################
+Parameters:
+  InstanceID:
+     Description: 'ID of instance to attach alarm to'
+     Type: AWS::EC2::Instance::Id
+  VNFName:
+     Description: 'Name of VNF'
+     Type: String
+  AlarmNameBase:
+     Description: 'Based of name to use for alarms'
+     Type: String
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+
+##################################################################################
+#Resources - Alarms and dashboards
+#################################################################################
+Resources:
+  CPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName:  !Sub '${AlarmNameBase}_cputhreshold'
+      AlarmDescription: !Sub 'CPU alarm for ${VNFName}'
+#future - add in alarm actions
+#     AlarmActions:
+#     - Ref: "logical name of an AWS::SNS::Topic resource"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+#future - make these configurable
+      Period: '300'
+      EvaluationPeriods: '3'
+      Threshold: '90'
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: InstanceId
+        Value: !Ref InstanceID
+
+#future - expand out this dashboard to include other metric etc
+  VNFDashboard:
+     Type: AWS::CloudWatch::Dashboard
+     Properties:
+       DashboardName: !Sub '${AlarmNameBase}_db'
+       DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":6,"height":6,"properties":{"metrics":[["AWS/EC2","CPUUtilization","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"${AWS::Region}","title":"${VNFName} CPU Utilisation"}},{"type":"metric","x":12,"y":0,"width":6,"height":6,"properties":{"metrics":[["AWS/EC2","NetworkPacketsIn","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"{AWS::Region}","title":"${VNFName} Network Packets In"}},{"type":"metric","x":12,"y":0,"width":6,"height":6,"properties":{"metrics":[["AWS/EC2","NetworkPacketsOut","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"{AWS::Region}","title":"${VNFName} Network Packets Out"}}]}'
+
+#DashboardBody: !Sub '{"widgets":[{"type":"metric","x":0,"y":0,"width":12,"height":6,"properties":{"metrics":[["AWS/EC2","CPUUtilization","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"${AWS::Region}","title":"${VNFName} CPU Utilisation"}},{"type":"metric","x":12,"y":0,"width":12,"height":6,"properties":{"metrics":[["AWS/EC2","NetworkPacketsIn","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"{AWS::Region}","title":"${VNFName} Network Packets In"}}]}'
+#DashboardBody: !Sub '{"widgets":[{"type":"metric","x":-1,"y":0,"width":12,"height":6,"properties":{"metrics":[["AWS/EC2","CPUUtilization","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"${AWS::Region}","title":"${VNFName} CPU Utilisation"}}, {"type":"text","x":0,"y":7,"width":3,"height":3,"properties":{"markdown":"PCSN Dashboard - more details to be added in future"}} ]}'
+#DashboardBody: !Sub '{"widgets":[{"type":"metric","x":-1,"y":0,"width":12,"height":6,"properties":{"metrics":[["AWS/EC2","CPUUtilization","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"${AWS::Region}","title":"${VNFName} CPU Utilisation"}}, {"type":"metric","x":-1,"y":0,"width":12,"height":6,"properties":{"metrics":[["AWS/EC2","NetworkPacketsIn","InstanceId","${InstanceID}"]],"period":300,"stat":"Average","region":"${AWS::Region}","title":"${VNFName} Network PacketsIn"}},{"type":"text","x":0,"y":7,"width":3,"height":3,"properties":{"markdown":"PCSN Dashboard - more details to be added in future"}}       ]}'
+
+#future - memory utilisation alarms will need cloudwatch agent to provide customer metric as cloudwatch can't gather this info without agent
+#future - latency alarms will need cloudwatch agent to provide customer metric as cloudwatch can't gather this info without agent
+#future - memory alarms will need cloudwatch agent to provide customer metric as cloudwatch can't gather this info without agent
+#future - could create billing alarm. Something like this
+#SpendingAlarm:
+#  Type: AWS::CloudWatch::Alarm
+#  Properties:
+#    AlarmDescription: !Sub >
+#      "Alarm if AWS spending is over $${AlarmThreshold}"
+#    Namespace: AWS/Billing
+#    MetricName: EstimatedCharges
+#    Dimensions:
+#    - Name: Currency
+#      Value: USD
+#    Statistic: Maximum
+#    Period: '21600'
+#    EvaluationPeriods: '1'
+#    Threshold:
+#      Ref: "AlarmThreshold"
+#    ComparisonOperator: GreaterThanThreshold
+#    AlarmActions:
+#    - Ref: "BillingAlarmNotification"
+#    InsufficientDataActions:
+#    - Ref: "BillingAlarmNotification"
+
+
+
+
+##################################################################################
+#Outputs - None yet
+#################################################################################
+

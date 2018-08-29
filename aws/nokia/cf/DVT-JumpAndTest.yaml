@@ -1,0 +1,271 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create jump server and test server/client.'
+#TBD - this stack will build test server (and jump server). Could also use custom SNS or lambda backed customer function to run tests
+#e.g https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/walkthrough-custom-resources-lambda-lookup-amiids.html
+#could have web server on test client which received request from sns. runs tests and returns success/fail response.
+#upon failure cf should roll back
+Parameters:
+  VPCStackName:
+    Description: 'Name of VPC Stack to deploy to'
+    Type: String
+  SDWANStackName:
+    Description: 'Name of SDWAN Stack to deploy to'
+    Type: String
+  VPCName:
+    Description: 'Name of VPC'
+    Type: String
+  TestSubnetAddress:
+    Description: 'Address of server subnet'
+    Type: String
+  TestExternalTarget:
+    Description: 'Address of external test server (for routing purposes)'
+    Type: String
+  KeyName:
+    Description: Name of an existing keyPair to associate jump and test instances to
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair
+  AMIJump:
+    Description: Enter AMI-ID for jump server
+    Type: AWS::EC2::Image::Id
+  InstanceTypeJump:
+    Description: jump server EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+    - t2.small
+    - t2.medium
+    - m4.large
+    - c3.8xlarge
+    - c4.8xlarge
+    - g2.8xlarge
+    - r3.8xlarge
+    - i2.8xlarge
+    - d2.8xlarge
+    - hi1.4xlarge
+    - hs1.8xlarge
+    - cr1.8xlarge
+    - cc2.8xlarge
+    - m2.4xlarge
+    - m4.4xlarge
+    - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  InstanceNameJump:
+    Description: Enter Name for jump Instance
+    ConstraintDescription: Jump Instance Name
+    Type: String
+  AMITest:
+    Description: Enter AMI-ID for test server
+    Type: AWS::EC2::Image::Id
+  InstanceTypeTest:
+    Description: jump server EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+    - t2.small
+    - t2.medium
+    - m4.large
+    - c3.8xlarge
+    - c4.8xlarge
+    - g2.8xlarge
+    - r3.8xlarge
+    - i2.8xlarge
+    - d2.8xlarge
+    - hi1.4xlarge
+    - hs1.8xlarge
+    - cr1.8xlarge
+    - cc2.8xlarge
+    - m2.4xlarge
+    - m4.4xlarge
+    - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  InstanceNameTest:
+    Description: Enter Name for Test Instance
+    ConstraintDescription: Instance Name
+    Type: String
+Resources:
+
+
+####################################################
+#Jump server resources
+####################################################
+
+  NetworkENIJump:
+        Type: AWS::EC2::NetworkInterface
+        DependsOn: SecurityGroupJump
+        Properties:
+            SubnetId: 
+                Fn::ImportValue: !Sub "${VPCStackName}-SubnetA1"
+            GroupSet: [!Ref 'SecurityGroupJump']
+            SourceDestCheck: 'false'
+
+  InstanceJump:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          #Use default primary volume size for now - may need to increase later. 
+#         VolumeSize: 24
+#         VolumeType: gp2
+          DeleteOnTermination: true 
+      Tags:
+      - Key: Name
+        Value:
+          Ref: InstanceNameJump
+      - Key: Cost_ByVPC
+        Value: !Ref VPCStackName
+      InstanceType:
+        Ref: InstanceTypeJump
+      KeyName:
+        Ref: KeyName
+      ImageId:
+        Ref: AMIJump
+      NetworkInterfaces:
+      - NetworkInterfaceId: 
+           Ref : NetworkENIJump
+        DeviceIndex: '0'
+ 
+  SecurityGroupJump:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for Jump
+        VpcId: 
+            Fn::ImportValue: !Sub "${VPCStackName}-VPC"
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '3389'
+          ToPort: '3389'
+          CidrIp: 0.0.0.0/0
+          Description: "RDP access"
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+          Description: "SSH access"
+        - IpProtocol: '1'
+          FromPort: '0'
+          ToPort: '0'
+          CidrIp: 0.0.0.0/0
+          Description: "Ping test"
+
+
+  
+      
+####################################################
+#Test client/server resources
+####################################################
+
+
+  InstanceTest:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          #Use default primary volume size for now - may need to increase later. 
+#         VolumeSize: 24
+#         VolumeType: gp2
+          DeleteOnTermination: true 
+      Tags:
+      - Key: Name
+        Value:
+          Ref: InstanceNameTest
+      - Key: Cost_ByVPC
+        Value: !Ref VPCStackName
+      InstanceType:
+        Ref: InstanceTypeTest
+      KeyName:
+        Ref: KeyName
+      ImageId:
+        Ref: AMITest
+      NetworkInterfaces:
+      - NetworkInterfaceId:
+          Ref: NetworkENITest
+        DeviceIndex: '0'
+ 
+  SecurityGroupTest:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for test server/client
+        VpcId: 
+            Fn::ImportValue: !Sub "${VPCStackName}-VPC"
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '3389'
+          ToPort: '3389'
+          CidrIp: 0.0.0.0/0
+          Description: "RDP access"
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+          Description: "SSH access"
+        - IpProtocol: '1'
+          FromPort: '0'
+          ToPort: '0'
+          CidrIp: 0.0.0.0/0
+          Description: "Ping test"
+
+          
+  SubnetTest:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub ${TestSubnetAddress}
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCStackName}-VPC"
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Sub_Testnet_${VPCName}'
+      - Key: Reach
+        Value: public
+      - Key: Cost_ByVPC
+        Value: !Ref VPCName
+
+  NetworkENITest:
+        Type: AWS::EC2::NetworkInterface
+        DependsOn: SecurityGroupTest
+        Properties:
+            SubnetId: !Ref SubnetTest
+            GroupSet: [!Ref 'SecurityGroupTest']
+            SourceDestCheck: 'false'
+      
+
+  RouteTableTest: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCStackName}-VPC"
+      Tags:
+      - Key: Name
+        Value: !Sub 'AZa_Rt_Testnet_${VPCName}'
+      - Key: Cost_ByVPC
+        Value: !Ref VPCName
+ 
+  RouteTableAssociationTest:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetTest
+      RouteTableId: !Ref RouteTableTest
+  
+  RouteTableTesttoSDWANRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableTest
+      DestinationCidrBlock: !Sub ${TestExternalTarget}
+      NetworkInterfaceId: 
+        Fn::ImportValue: !Sub "${SDWANStackName}-AccessENI"
+  
+  
+Outputs:
+  InstanceIdJump:
+    Description: InstanceId of the newly created Jump instance
+    Value:
+      Ref: InstanceJump
+  InstanceIdTest:
+    Description: InstanceId of the newly created Test instance
+    Value:
+      Ref: InstanceTest
+
+

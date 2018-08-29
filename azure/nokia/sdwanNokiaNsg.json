@@ -1,0 +1,163 @@
+{
+ "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nsgName": {
+      "type": "String"
+    },
+    "nsgDisk": {
+      "type": "String"
+    },
+    "nsgVmSize": {
+      "type": "String"
+    },
+    "nsgVnet": {
+      "type": "String"
+    },
+    "nsgPublicSubnet": {
+      "type": "String"
+    },
+    "nsgPrivateSubnet": {
+      "type": "String"
+    },
+    "nsgSecurityGroup": {
+      "type": "String"
+    }
+  },
+  "variables": {
+    "nsgWanInterface": "[concat(parameters('nsgName'),'-wan')]",
+    "nsgLanInterface": "[concat(parameters('nsgName'),'-lan')]",
+    "nsgPublicIP": "[concat(parameters('nsgName'),'-publicIP')]"
+  },
+  "resources": [
+    {
+      "comments": "NSG Virtual Machine",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('nsgName')]",
+      "apiVersion": "2017-12-01",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "POD": "Network",
+        "NFV": "SDWAN-Nokia"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('nsgVmSize')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nsgWanInterface'))]",
+              "properties": {
+                "primary": true
+              }
+            },
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nsgLanInterface'))]",
+              "properties": {
+                "primary": false
+              }
+            }
+          ]
+        },
+        "storageProfile": {
+          "osDisk": {
+            "createOption": "attach",
+            "osType": "linux",
+            "managedDisk": {
+              "id": "[resourceId('Microsoft.Compute/disks',parameters('nsgDisk'))]"
+            }
+          }
+        },
+        "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "https://btmisql01tststgdiag.blob.core.windows.net/"
+                    }
+        }
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('nsgPublicIP'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nsgWanInterface'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nsgLanInterface'))]"
+      ]
+    },
+    {
+      "comments": "Public IP address",
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('nsgPublicIP')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "POD": "Network",
+        "NFV": "SDWAN-Nokia"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "comments": "WAN Interface",
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nsgWanInterface')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "POD": "Network",
+        "NFV": "SDWAN-Nokia"
+      },
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgSecurityGroup'))]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('nsgPublicIP'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',parameters('nsgVnet'),parameters('nsgPublicSubnet'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('nsgPublicIP'))]"
+      ]
+    },
+    {
+      "comments": "LAN Interface",
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nsgLanInterface')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "POD": "Network",
+        "NFV": "SDWAN-Nokia"
+      },
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgSecurityGroup'))]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "enableIPForwarding": true,
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',parameters('nsgVnet'),parameters('nsgPrivateSubnet'))]"
+              }
+            }
+          }
+        ]
+      }
+    }
+                                                                                                                                                             
+  ],
+  "outputs": {}
+}

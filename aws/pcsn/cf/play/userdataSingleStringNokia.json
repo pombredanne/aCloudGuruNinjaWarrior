@@ -1,0 +1,6 @@
+[
+  {
+    "ParameterKey": "UserDataTest",
+    "ParameterValue": "nuage_nsg:\n  proxyFQDN: connect01.agile.bt.com\n  enterpriseID: e9546af0-c9e0-4e17-b85f-1a45d0eb80cf\n  NSGatewayID: 166cb270-f5fc-4260-a0fe-1f4fcb5d61d4\n  NSGType: ANY\n  uplinks:\n  - name: port4\n    v4:\n  mode: static\n      static:\n        gw: 192.168.202.32\n        ip: 192.168.202.33\n        dns: 192.168.201.254\n        mask: 255.255.255.254\n      installermanaged: false\n  signature: QLEvc3PxqqHxWP1l++Yrvlp2gJiBgKlgLcc/dHCuR0AhrMuEYqTHHOTIU3/lwzmhCmCa5TzUCdq2vSdLBKiT0TDyJE/vQJDUAK6bg8hl+o0AmRDTKvkhM60/MVfQA/+7+QTqcqA4G2auXaFZo7drG1+wQolyI+F0HHj1nYVpYXzTzRXBXnNNma9IewQXwGubSm5tRlEKHB1i3/lxZN+RCIxvE9gCHa9yMzwZ6yzGqeYWt7AakgoePajkt1yrUXhpCtJRc75CYAFKubAW1h5jHupi3S3xjF531U58HZ6ZppqsSdqK+QtWW/y66oI2YbfhTfCAHs0KZcd2OlPU/aLv/g=="
+  } 
+]

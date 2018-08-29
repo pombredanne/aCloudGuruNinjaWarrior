@@ -1,0 +1,28 @@
+#- tasks:
+  - name: Display input params
+    debug:
+      msg: "Input params are: region={{ region }} , ami={{ ami }}, keyPair={{ keyPair }}, instanceType={{ instanceType }}, vnfName={{ vnfName }}"
+  - name: Deploy to AWS
+    cloudformation:
+      stack_name: "cf-{{ env }}-{{ vnf }}-{{ vnfName }}"
+      region: "{{ region }}"
+      state: "{{ vnfState }}"
+      template: "cf-{{ vnf }}.yml"
+      template_parameters:
+         AMI: "{{ ami }}"
+         KeyName: "{{ keyPair }}"
+         InstanceType: "{{ instanceType }}"
+         InstanceName: "{{ vnfName }}"
+      tags:
+         vnf: "{{ vnf }}"
+         env: "{{ env }}"
+    register: stack
+  - name: Display output params
+    debug:
+      msg: "Output stack: {{stack.stack_outputs}}"
+#      msg: "MACAddress: {{ stack.stack_outputs.MACAddress }}"
+      msg: "Instance id: {{stack.stack_outputs.InstanceID}}, PrivateIP: {{ stack.stack_outputs.PrivateIP }}, PublicIP: {{ stack.stack_outputs.PublicIP }}"
+    when: vnfState == "present"
+#
+#    - name: Configure vmanage controller
+

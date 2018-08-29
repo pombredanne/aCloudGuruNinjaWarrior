@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Nokia vedge to VPC.'
+#TBD - add in support for multi-AZ solution when available 
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+   ConstraintDescription: Must be from existing VPC
+  SUBNETIDPUBLIC:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+   ConstraintDescription: Must be from existing subnet
+  SUBNETIDPRIVATE:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+    ConstraintDescription: Must be from existing subnet
+  InstanceType:
+    Description: vedge EC2 instance type
+    Type: String
+    Default: c4.large
+    AllowedValues:
+     - c4.large
+     - c4.xlarge
+     - c4.2xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  InstanceName:
+    Description: Enter Name for Instance
+    ConstraintDescription: Instance Name
+    Type: String
+  AMI:
+    Description: Enter AMI-ID for Instance
+    Type: AWS::EC2::Image::Id
+    ConstraintDescription: Security Groups already created
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+  BOOTOTP:
+    Description: Bootstrap data otp
+    Type: String
+  BOOTVBOND:
+    Description: Bootstrap data vbond
+    Type: String
+  BOOTUUID:
+    Description: Bootstrap data uuid
+    Type: String
+  BOOTORG:
+    Description: Bootstrap data org
+    Type: String
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs:
+          VolumeSize: 8
+          VolumeType: gp2
+          DeleteOnTermination: true
+      - DeviceName: "/dev/sdb"
+        Ebs:
+          VolumeSize: 20
+          VolumeType: gp2
+          DeleteOnTermination: true
+
+            
+
+      Tags:
+      - Key: Name
+        Value:
+          Ref: InstanceName
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      ImageId:
+        Ref: AMI
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "#cloud-config\nvinitparam:\n"
+            - !Sub "- otp : ${BOOTOTP}\n"
+            - !Sub "- vbond : ${BOOTVBOND}\n"
+            - !Sub "- uuid : ${BOOTUUID}\n"
+            - !Sub "- org : ${BOOTORG}"
+
+      NetworkInterfaces:
+      - NetworkInterfaceId:
+          Ref: NetworkENI
+        DeviceIndex: '0'
+      - NetworkInterfaceId:
+          Ref: AccessENI
+        DeviceIndex: '1'
+ 
+  vEdgeSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        VpcId: !Ref VPCID
+        GroupName: "sgvedge"
+        GroupDescription: "Security group for vedge"
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+          Description: "vedge ssg access"
+        - IpProtocol: udp
+          FromPort: '12346'
+          ToPort: '12346'
+          CidrIp: 0.0.0.0/0
+          Description: "IPSEC from remote endpoints"
+        - IpProtocol: '1'
+          FromPort: '0'
+          ToPort: '0'
+          CidrIp: 0.0.0.0/0
+          Description: "Ping test"
+
+ #Interface for network port
+  NetworkENI:
+        Type: AWS::EC2::NetworkInterface
+        DependsOn: vEdgeSecurityGroup
+        Properties:
+            SubnetId: !Ref SUBNETIDPUBLIC 
+            GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+            SourceDestCheck: 'false'
+      
+ #Interface for access port
+  AccessENI:
+        Type: AWS::EC2::NetworkInterface
+        DependsOn: vEdgeSecurityGroup
+        Properties:
+            SubnetId: !Ref SUBNETIDPRIVATE 
+            GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+            SourceDestCheck: 'false'
+  vEdgeEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: !Ref SUBNETIDPUBLIC
+  EIPAssoc:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            AllocationId:
+                Fn::GetAtt:
+                - vEdgeEIP
+                - AllocationId
+            NetworkInterfaceId:
+                Ref: NetworkENI
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created vedge instance
+    Value:
+      Ref: EC2Instance
+
