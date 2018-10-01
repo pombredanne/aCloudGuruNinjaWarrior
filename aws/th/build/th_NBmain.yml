@@ -1,0 +1,174 @@
+#################################################################################
+#TH GLOBAL - main template. northbound interface
+#################################################################################
+#futures - Deployment size option. Large, medium, small. Driv things like scaling group cobfig from this.
+#
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "TH Global - Northbound interface"
+
+#################################################################################
+#Input parameters
+#################################################################################
+
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+  genCustMne:
+    Description: Customer mnemonic
+    Type: String
+  networkDomain:
+    Description: TH domain name
+    Type: String
+  networkVPCCidr:
+    Description: VPC ID
+    Type: String
+  flavDeploymentType:
+    Description: Deployment - single or multi region
+    Type: String
+    Default: singleRegion
+  genCustomerBillingContact:
+    Description: Customer contact - billing
+    Type: String
+  genCustomerSupportContact:
+    Description: Customer contact - support liason
+    Type: String
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+#################################################################################
+#Conditions
+#################################################################################
+Conditions: 
+  MultiRegion: !Equals [!Ref flavDeploymentType, 'MultiRegion' ]
+
+#################################################################################
+#TH Child stacks
+#################################################################################
+Resources: 
+
+  objectStorageStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/btdyns-cf-templates/th/th_objStorageLayer.yml
+      TimeoutInMinutes: '10'
+      Parameters:
+        genCustName: !Ref genCustName
+        flavDeploymentType: !Ref flavDeploymentType
+        genCreated: !Ref genCreated
+        genUpdated: !Ref genUpdated
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_cfs_${AWS::Region}_${genCustName}_objStorage'
+      - Key: THGLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+  networksStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/btdyns-cf-templates/th/th_networksAndAccess.yml
+      TimeoutInMinutes: '10'
+      Parameters:
+        genCustName: !Ref genCustName
+        genCustMne: !Ref genCustMne
+        networkVPCCidr: !Ref networkVPCCidr
+        flavDeploymentType: !Ref flavDeploymentType
+        genCreated: !Ref genCreated
+        genUpdated: !Ref genUpdated
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_cfs_${AWS::Region}_${genCustName}_webLayer'
+      - Key: THGLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+  webLayerStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: networksStack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/btdyns-cf-templates/th/th_webLayer.yml
+#      TimeoutInMinutes: '10'
+      Parameters:
+        genCustName: !Ref genCustName
+        genCustMne: !Ref genCustMne
+        networkVPCID: !GetAtt networksStack.Outputs.VPCID
+        networkDomain: !Ref networkDomain
+        networkPublicSubnetA: !GetAtt networksStack.Outputs.SubnetA1ID
+        networkPublicSubnetB: !GetAtt networksStack.Outputs.SubnetB1ID
+        flavDeploymentType: !Ref flavDeploymentType
+        genCreated: !Ref genCreated
+        genUpdated: !Ref genUpdated
+        cloudFront: false
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_cfs_${AWS::Region}_${genCustName}_webLayer'
+      - Key: THGLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+  dbLayerStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: networksStack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/btdyns-cf-templates/th/th_dbLayer.yml
+      Parameters:
+        genCustName: !Ref genCustName
+        genCustMne: !Ref genCustMne
+        networkVPCID: !GetAtt networksStack.Outputs.VPCID
+        networkDomain: !Ref networkDomain
+        networkDBSubnetA: !GetAtt networksStack.Outputs.SubnetA2ID
+        networkDBSubnetB: !GetAtt networksStack.Outputs.SubnetB2ID
+        flavDeploymentType: !Ref flavDeploymentType
+        genCreated: !Ref genCreated
+        genUpdated: !Ref genUpdated
+        rds: false
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_cfs_${AWS::Region}_${genCustName}_dbLayer'
+      - Key: THGLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+
+  notifyStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/btdyns-cf-templates/th/th_notify.yml
+      Parameters:
+        genCustName: !Ref genCustName
+        genCustMne: !Ref genCustMne
+        genCustomerBillingContact: !Ref genCustomerBillingContact
+        genCustomerSupportContact: !Ref genCustomerSupportContact
+        genCreated: !Ref genCreated
+        genUpdated: !Ref genUpdated
+        rds: false
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_cfs_${AWS::Region}_${genCustName}_dbLayer'
+      - Key: THGLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+
+
+#################################################################################
+#Outputs
+################################################################################
+Outputs:
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+ 
+#futures - Output url of s3 bucket 

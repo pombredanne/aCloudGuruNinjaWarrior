@@ -1,0 +1,384 @@
+#################################################################################
+#TH Global - web layer
+#################################################################################
+#
+#futures - Add mdm to web layer - https://www.manageengine.co.uk/mobile-device-management/how-to/install-mdm-at-aws.html
+#
+#futures - Weblogic on aws. Add as futures to th. Split web server into eb and app server. 2 tier. Use of ejb and jms. http://www.oracle.com/technetwork/testcontent/wlsami-ref-134550.pdf
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TH Global - web layer'
+
+#future - add in support for multi-AZ solution when available 
+#future - support keypairs
+#future - add instance termination protection
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+  genCustMne:
+    Description: Customer mnemonic
+    Type: String
+  networkVPCID:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  networkDomain:
+    Description: TH Domain name
+    Type: String
+  networkPublicSubnetA:
+    Description: Public Subnet ID
+    Type: AWS::EC2::Subnet::Id
+  networkPublicSubnetB:
+    Description: Public Subnet ID
+    Type: AWS::EC2::Subnet::Id
+  flavDeploymentType:
+    Description: Deployment - single or multi region
+    Type: String
+    Default: singleRegion
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  cloudFront:
+    Type: String
+    Default: false
+
+#################################################################################
+#Conditions
+#################################################################################
+
+Conditions:
+  MultiRegion: !Equals [!Ref flavDeploymentType, 'MultiRegion' ]
+  DeployCloudFront: !Equals [!Ref cloudFront, 'true' ]
+
+
+
+#################################################################################
+#AMI mappings
+#################################################################################
+
+Mappings:
+  webappAMIMap:
+    us-east-1:
+      "ami": "ami-a00ad1dd"
+    eu-west-2:
+      "ami": "ami-e2a54385"
+
+
+Resources:
+#################################################################################
+#DNS
+#################################################################################
+#
+##futures - create records sets for 2nd region and add failover record
+  webappDNSRecordCl:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${networkDomain}.'
+      Comment: DNS name for my instance.
+      Name: !Sub 'clinicians.${networkDomain}.'
+      Type: A
+  #    TTL: '900'
+      AliasTarget:
+        HostedZoneId: !GetAtt webappLoadBalancer.CanonicalHostedZoneID
+        DNSName: !GetAtt webappLoadBalancer.DNSName
+ 
+  webappDNSRecordPa:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${networkDomain}.'
+      Comment: DNS name for my instance.
+      Name: !Sub 'patients.${networkDomain}.'
+      Type: A
+  #    TTL: '900'
+      AliasTarget:
+        HostedZoneId: !GetAtt webappLoadBalancer.CanonicalHostedZoneID
+        DNSName: !GetAtt webappLoadBalancer.DNSName
+
+
+#future - add in route53 healthcheck - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-route53-healthcheck.html
+
+#future - create recordset which points to cloudfront dns - see here https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-route53.html#w2ab1c17c23c81c11    subdomain something like patientglobal
+
+
+#################################################################################
+#Web app
+#################################################################################
+
+#future - tie down to access from web app security group only
+#  thElasticacheSecurityGroup:
+#    Type: AWS::EC2::SecurityGroup
+#    Properties:
+#      VpcId: !Ref networkVPCID
+#      GroupDescription: "Elasticache Security Group"
+#      SecurityGroupIngress:
+#      -
+#        IpProtocol: "tcp"
+#        FromPort: "11211"
+#        ToPort: "11211"
+#        CidrIp: 0.0.0.0/0
+#        Description: "EC security group"
+
+#  thElasticacheSubnetGroup:
+#    Type: AWS::ElastiCache::SubnetGroup
+#    Properties:
+#      CacheSubnetGroupName: !Sub 'thglobal-ecsubng-webapp-${genCustMne}'
+#      Description: "Elasticache subnet group"
+#      SubnetIds:
+#      - !Ref networkPublicSubnetA
+#      - !Ref networkPublicSubnetB
+######
+#Not sure why this is giving a InvalidParameterValuenull error 
+######
+#  thElasticacheCluster:
+#    Type: AWS::ElastiCache::CacheCluster
+#    DependsOn: thElasticacheSecurityGroup
+#    Properties:
+#      AZMode: "multi-az"
+#      AutoMinorVersionUpgrade: "true"
+#      Engine: "memcached"
+#      CacheNodeType: "cache.t2.micro"
+#      NumCacheNodes: "2"
+#      CacheSubnetGroupName: !Ref thElasticacheSubnetGroup
+#      ClusterName: !Sub 'thglobal-ec-${genCustMne}'
+#      PreferredAvailabilityZones: ["eu-west-2a", "eu-west-2b"]
+#      PreferredMaintenanceWindow: "Sun:22:00-Sun:23:00"
+#      VpcSecurityGroupIds:
+#      -
+#        Fn::GetAtt:
+#          - "thElasticacheSecurityGroup"
+#          - "GroupId"
+#      Tags:
+#      - Key: Name
+#        Value: !Sub 'thglobal_ec_webapp_${genCustMne}'
+#      - Key: THGlobal-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref genCreated
+
+  webAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: !Sub 'thglobal-lc-webapp-${genCustMne}'
+      ImageId:  !FindInMap [webappAMIMap, !Ref "AWS::Region", "ami"]
+      SecurityGroups: [!GetAtt webappSecurityGroup.GroupId]
+      InstanceType: t2.small
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs:
+          VolumeSize: 8
+          VolumeType: gp2
+          DeleteOnTermination: true
+#      UserData:
+#        Fn::Base64:
+#          Fn::Join:
+#          - ''
+#          - - "#dummy params:\n"
+#            - !Sub "- placeholder1 : ${UserData1}\n"
+#            - !Sub "- placeholder2 : ${UserData2}\n"
+#            - !Sub "- placeholder3 : ${UserData3}\n"
+#            - !Sub "- placeholder4 : ${UserData4}"
+#
+  webappASPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref webappASGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 80
+
+  webappASGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+#future - add group metric collection. Just collect all at 5 min intervals. https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-as-metricscollection.html
+    DependsOn: webappLoadBalancer
+    Properties:
+      VPCZoneIdentifier: [!Ref networkPublicSubnetA, !Ref networkPublicSubnetB]
+      LaunchConfigurationName: !Sub 'thglobal-lc-webapp-${genCustMne}'
+      TargetGroupARNs: [ !Ref webappTargetGroup]
+      Cooldown: 5
+      MinSize: '2'
+      MaxSize: '6'
+#      LoadBalancerNames:
+#      - Ref: webappLoadBalancer
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_asg_webapp_${genCustMne}'
+        PropagateAtLaunch: true
+      - Key: THGlobal-RESOURCE
+        Value: true
+        PropagateAtLaunch: true
+      - Key: Created
+        Value: !Ref genCreated
+        PropagateAtLaunch: false
+
+  webappLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: [!Ref networkPublicSubnetA, !Ref networkPublicSubnetB]
+      Type: application
+      Scheme: internet-facing
+      Name: !Sub 'thglobal-lb-webapp-${genCustMne}'
+
+#futures - for both listeners. use https. need to create certificate through ACM (can also import one). then associate certificate to listener like this 
+# ListenerCertificate1:
+#    Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+#    Properties:
+#      Certificates:
+#        - CertificateArn: !Ref CertificateArn1
+#      ListenerArn: !Ref webAppListener1
+
+  webappListener1:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref webappTargetGroup
+      LoadBalancerArn: !Ref webappLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+#future - use redirect rule instead of having to request special port. use url patterns. look at rules and priorities.
+##also look at http-https redireciton and vice versa.
+#
+#future - look at back end server authentication
+  webappListener2:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref webappTargetGroup
+      LoadBalancerArn: !Ref webappLoadBalancer
+      Port: 81
+      Protocol: HTTP
+
+  webappTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckPath: "/testapp"
+      Name: !Sub 'thglobal-tg-webapp-${genCustMne}'
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref networkVPCID
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+
+
+  webappSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref networkVPCID
+      GroupName: !Sub 'thglobal_sg_webapp_${genCustMne}'
+      GroupDescription: "Security group for webapp"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+        Description: "dagnostic access"
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+        Description: "webapp access - patients"
+      - IpProtocol: tcp
+        FromPort: '445'
+        ToPort: '445'
+        CidrIp: 0.0.0.0/0
+        Description: "webapp access - clinicians"
+
+
+#futures - add waf acl
+
+  webAppDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: DeployCloudFront
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Ref webappDNSRecordPa
+          Id: thPaOrigin
+          CustomOriginConfig:
+            HTTPPort: '80'
+            HTTPSPort: '443'
+            OriginProtocolPolicy: match-viewer
+            OriginKeepaliveTimeout: 30 
+            OriginReadTimeout: 30 
+#        - DomainName: mybucket.s3.amazonaws.com    example s3 origin
+#          Id: myS3Origin
+#          S3OriginConfig:
+#            OriginAccessIdentity: origin-access-identity/cloudfront/E127EXAMPLE51Z
+        Enabled: 'true'
+        Comment: Distribution for TH patients
+        DefaultRootObject: index.html
+#        Logging:
+#          IncludeCookies: 'false'
+#          Bucket: mylogs.s3.amazonaws.com
+#          Prefix: myprefix
+#        Aliases:
+#        - mysite.example.com
+#        - yoursite.example.com
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+          CachedMethods:
+          - GET
+          - HEAD
+          Compress: true
+          DefaultTTL: 600
+          TargetOriginId: thPaOrigin
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+#          TrustedSigners:
+#          - 1234567890EX
+#          - 1234567891EX
+          ViewerProtocolPolicy: allow-all
+        PriceClass: PriceClass_100
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: whitelist
+            Locations:
+            - GB
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+
+
+#Jump server
+#probably implement as server in public subnet. call from foundation template as option 
+#alternatively put jump server in vnf wan subnet. Add security group rule only allowing ssh from jump server sg to vnf 
+
+#VPN
+#Create customer gateway - need asn and ip address. assume ipsec. ideally need 2 for resilience.
+#Create vpn gateway - assume ipsec
+#Create vpn connection - use reference to customer and vpn gateways. ideally need 2 for resilience. 1 to each customer gateway (note vpn is actually 2 tunnels for resilience)
+#can create in vnf subnet or public subnet 
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+

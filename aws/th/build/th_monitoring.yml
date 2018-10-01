@@ -1,0 +1,82 @@
+#################################################################################
+#TH Global - monitoring
+#
+#################################################################################
+#
+#
+# futures - see slides for table of alarms, metrics, events widgets, databases, that will go here
+#
+#Inmonitorng vpc create new ops server. Separate subnet in vpc and new role allowing access only to this subnet.need to do in different template and using role in th account
+
+# futures - create cw log groups here ,mainly for lambda functions. set retention in days. also log metric filters, esp for cloud trail
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Other VNFs.'
+
+#future - add in support for multi-AZ solution when available 
+#future - support keypairs
+#future - add instance termination protection
+#
+#Note this is just an example of patterns.
+#Fortinet and Riverbed sections
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+  SubnetWAN:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+  SubnetLAN:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+  NaclWAN:
+    Description: NACL wan side
+    Type: String
+  NaclLAN:
+    Description: NACL lan side
+    Type: String
+  InstanceName:
+    Description: Instance Name
+    Type: String
+  UserData:
+    Description: Bootstrap data
+    Type: String
+    Default: false
+  VNFType:
+    Description: VNF Type
+    Type: String
+    Default: false
+  DeploymentType:
+    Description: Deployment - Fixed or Scaled
+    Type: String
+    Default: false
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  DevTest:
+    Description: Flag to trigger specific devtest actions
+    Type: String
+    Default: false
+  FlavourPerformance:
+    Description: Performance flavour
+    Type: String
+    Default: false
+  PlacementGroup:
+    Description: Placement group
+    Type: String
+#################################################################################
+#Conditions
+#################################################################################
+
+Resources:
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:

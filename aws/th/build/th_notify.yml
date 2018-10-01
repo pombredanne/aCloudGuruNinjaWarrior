@@ -1,0 +1,92 @@
+#################################################################################
+#TH Global - notificaitons
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Other VNFs.'
+
+
+#TBD - Notifications setup for customer billing and support liasom lead. Form is sent cost management reports, latter is sent key incicidents
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+  genCustMne:
+    Description: Customer mnemonic
+    Type: String
+  genCustomerBillingContact:
+    Description: Customer billing contact
+    Type: String
+  genCustomerSupportContact:
+    Description: Customer support contact
+    Type: String
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+#################################################################################
+#Conditions
+#################################################################################
+
+#Conditions:
+
+Resources:
+  BillingSNSTopic: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      Subscription: 
+      - 
+        Endpoint: !Ref genCustomerBillingContact 
+        Protocol: "email"
+      TopicName: "THBillingTopic"
+#Tags not currently supported
+#    Tags:
+#      - Key: Name
+#        Value: !Sub 'thglobal_sns_${genCustMne}'
+#      - Key: THGlobal-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref genCreated
+
+
+  SupportSNSTopic: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      Subscription: 
+      - 
+        Endpoint: !Ref genCustomerSupportContact 
+        Protocol: "email"
+      TopicName: "THSupportTopic"
+#    Tags:
+#      - Key: Name
+#        Value: !Sub 'thglobal_sns_${genCustMne}'
+#      - Key: THGlobal-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref genCreated
+
+ #Properties:^M
+  #      Subscription:^M
+  #      - Endpoint: !Sub '${AlertContact1}'^M
+  #        Protocol: email^M
+  #      - Endpoint: !Sub '${AlertContact2}'^M
+  #        Protocol: email^M
+
+
+
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+

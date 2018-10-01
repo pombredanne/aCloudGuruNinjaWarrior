@@ -20,6 +20,10 @@
             "ParameterValue": "WAN<->Nokia SDWAN<->Fortinet<->Hosts"
         },
         {
+            "ParameterKey": "PrimaryAZ", 
+            "ParameterValue": "eu-west-2a"
+        },
+        {
             "ParameterKey": "FlavourResilience", 
             "ParameterValue": "SingleAZ"
         },

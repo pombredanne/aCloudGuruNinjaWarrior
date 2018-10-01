@@ -1,7 +1,6 @@
-<<<<<<< HEAD
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Deploy Nokia vedge to VPC.'
-#TBD - add in support for multi-AZ solution when available 
+#TBD - add in support for multi-AZ solution when available
 Parameters:
   VPCID:
    Description: VPC ID
@@ -63,8 +62,6 @@ Resources:
           VolumeType: gp2
           DeleteOnTermination: true
 
-            
-
       Tags:
       - Key: Name
         Value:
@@ -84,7 +81,6 @@ Resources:
             - !Sub "- vbond : ${BOOTVBOND}\n"
             - !Sub "- uuid : ${BOOTUUID}\n"
             - !Sub "- org : ${BOOTORG}"
-
       NetworkInterfaces:
       - NetworkInterfaceId:
           Ref: NetworkENI
@@ -92,12 +88,11 @@ Resources:
       - NetworkInterfaceId:
           Ref: AccessENI
         DeviceIndex: '1'
- 
   vEdgeSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
         VpcId: !Ref VPCID
-        GroupName: "sgvedge"
+        GroupName: "sgvedge1"
         GroupDescription: "Security group for vedge"
         SecurityGroupIngress:
         - IpProtocol: tcp
@@ -115,22 +110,20 @@ Resources:
           ToPort: '0'
           CidrIp: 0.0.0.0/0
           Description: "Ping test"
-
  #Interface for network port
   NetworkENI:
         Type: AWS::EC2::NetworkInterface
         DependsOn: vEdgeSecurityGroup
         Properties:
-            SubnetId: !Ref SUBNETIDPUBLIC 
+            SubnetId: !Ref SUBNETIDPUBLIC
             GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
             SourceDestCheck: 'false'
-      
  #Interface for access port
   AccessENI:
         Type: AWS::EC2::NetworkInterface
         DependsOn: vEdgeSecurityGroup
         Properties:
-            SubnetId: !Ref SUBNETIDPRIVATE 
+            SubnetId: !Ref SUBNETIDPRIVATE
             GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
             SourceDestCheck: 'false'
   vEdgeEIP:
@@ -151,48 +144,3 @@ Outputs:
     Description: InstanceId of the newly created vedge instance
     Value:
       Ref: EC2Instance
-
-=======
----
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Create vedge'
-Parameters:
-  KeyName:
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
-    Type: AWS::EC2::KeyPair::KeyName
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.
-  AMI:
-    Description: Enter AMI-ID for Instance
-    Type: AWS::EC2::Image::Id
-    ConstraintDescription: Security Groups already created
-  InstanceType:
-    Description: NSG EC2 instance type
-    Type: String
-    Default: t2.small
-    AllowedValues:
-    - t2.small
-    - t2.medium
-    - m4.large
-    - c3.8xlarge
-    - c4.8xlarge
-    - g2.8xlarge
-    ConstraintDescription: must be a valid EC2 instance type.
-  InstanceName:
-    Description: Enter Name for Instance
-    ConstraintDescription: Instance Name
-    Type: String
-Resources:
-  EC2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      Tags:
-      - Key: Name
-        Value:
-          Ref: InstanceName
-      InstanceType:
-        Ref: InstanceType
-      KeyName:
-        Ref: KeyName
-      ImageId:
-        Ref: AMI
->>>>>>> 560652ef4fac4615bfcb58e9b347fea5c1882613

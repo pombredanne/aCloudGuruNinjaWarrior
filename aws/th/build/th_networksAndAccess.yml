@@ -1,0 +1,521 @@
+#################################################################################
+#TH Global  -  networks and access
+#################################################################################
+#
+#futures - access options - directory services, ad connector (or put this in accounts ?)
+#futures - Use of endpoints for service access. Also perhaps customer access. Also peering.
+
+#futures - create vpc in failover region. possibly just call this template with different name and region
+#futures - flow logs
+#################################################################################
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "TH Global - networks and access"
+
+#################################################################################
+#Input parameters
+#################################################################################
+
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+  genCustMne:
+    Description: Customer mnemonic
+    Type: String
+  networkVPCCidr:
+    Description: VPC CIDR
+    Type: String
+  flavDeploymentType:
+    Description: Deployment - single or multi region
+    Type: String
+    Default: singleRegion
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+#################################################################################
+#Conditions
+#################################################################################
+#Conditions: 
+
+#################################################################################
+#Subnets
+#################################################################################
+Resources:
+
+  thVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub '${networkVPCCidr}.0/16'
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_vpc_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+  thInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_ig_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref thVPC
+      InternetGatewayId: !Ref thInternetGateway
+
+  SubnetA1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.0/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_sub_${AWS::Region}_a1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetA2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.16/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_sub_${AWS::Region}_a2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetA3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.32/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_sub_${AWS::Region}_a3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetB1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.64/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_sub_${AWS::Region}_b1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetB2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.80/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_sub_${AWS::Region}_b2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetB3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Sub '${networkVPCCidr}.96/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_sub_${AWS::Region}_b3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+
+#################################################################################
+#Route Tables
+#################################################################################
+
+  RouteTableA1: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_a1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableA2: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_a2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableA3: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_a3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableB1: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_b1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableB2: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_b2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableB3: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_rt_${AWS::Region}_b3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  RouteTableAssociationA1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA1
+      RouteTableId: !Ref RouteTableA1
+  RouteTableAssociationA2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA2
+      RouteTableId: !Ref RouteTableA2
+  RouteTableAssociationA3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA3
+      RouteTableId: !Ref RouteTableA3
+  RouteTableAssociationB1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB1
+      RouteTableId: !Ref RouteTableB1
+  RouteTableAssociationB2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB2
+      RouteTableId: !Ref RouteTableB2
+  RouteTableAssociationB3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB3
+      RouteTableId: !Ref RouteTableB3
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref thInternetGateway
+      RouteTableId: !Ref RouteTableA1
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref thInternetGateway
+      RouteTableId: !Ref RouteTableB1
+      
+#################################################################################
+#Network ACLs
+#################################################################################
+
+  NetworkAclA1:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_nacl_${AWS::Region}_a1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  NetworkAclA2:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_nacl_${AWS::Region}_a2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  NetworkAclA3:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_nacl_${AWS::Region}_a3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  NetworkAclB1:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub  'thglobal_nacl_${AWS::Region}_b1_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  NetworkAclB2:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_nacl_${AWS::Region}_b2_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  NetworkAclB3:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref thVPC
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_nacl_${AWS::Region}_b3_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+  SubnetNetworkAclAssociationA1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA1
+      NetworkAclId: !Ref NetworkAclA1
+  SubnetNetworkAclAssociationA2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA2
+      NetworkAclId: !Ref NetworkAclA2
+  SubnetNetworkAclAssociationA3:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA3
+      NetworkAclId: !Ref NetworkAclA3
+  SubnetNetworkAclAssociationB1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB1
+      NetworkAclId: !Ref NetworkAclB1
+  SubnetNetworkAclAssociationB2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB2
+      NetworkAclId: !Ref NetworkAclB2
+  SubnetNetworkAclAssociationB3:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB3
+      NetworkAclId: !Ref NetworkAclB3
+
+#futures - for now make nacls allow all by default. tie down later
+  NetworkAclEntryInA1:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1A1:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInA2:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1A2:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInA3:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA3
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1A3:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclA3
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInB1:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1B1:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB1
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInB2:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1B2:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB2
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryInB3:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB3
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: '0.0.0.0/0'
+  NetworkAclEntryOut1B3:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAclB3
+      RuleNumber: 99
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: '0.0.0.0/0'
+      
+  
+#################################################################################
+#Outputs
+#################################################################################
+#futures - outputs for now -  vpcid and subnets ids
+Outputs:
+  VPCID:
+    Description: 'VPC ID'
+    Value: !Ref thVPC
+  SubnetA1ID:
+    Description: 'Subnet A1 ID'
+    Value: !Ref SubnetA1
+  SubnetA2ID:
+    Description: 'Subnet A2 ID'
+    Value: !Ref SubnetA2
+  SubnetA3ID:
+    Description: 'Subnet A3 ID'
+    Value: !Ref SubnetA3
+  SubnetB1ID:
+    Description: 'Subnet B1 ID'
+    Value: !Ref SubnetB1
+  SubnetB2ID:
+    Description: 'Subnet B2 ID'
+    Value: !Ref SubnetB2
+  SubnetB3ID:
+    Description: 'Subnet B3 ID'
+    Value: !Ref SubnetB3
+
+
+ 

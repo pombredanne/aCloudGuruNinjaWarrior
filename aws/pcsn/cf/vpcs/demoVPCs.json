@@ -1,0 +1,12 @@
+[
+        {
+            "Region": "eu-west-2",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.70.0.0/16"
+        },
+        {
+            "Region": "eu-west-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.70.0.0/16"
+        }
+]

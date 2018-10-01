@@ -1,0 +1,275 @@
+################################################################################
+#TH Global - database layer
+################################################################################
+
+#futures - Use of secrets manager to get rds credentials
+#future - optional databases (possible for cost reasons)
+#futures - enhanced rds monitoring. specific monitoring interval less than 5 minutes. Also need enhanced monitoring role
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TH global - database layer'
+
+#################################################################################
+#Input parameters
+#################################################################################
+
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+  genCustMne:
+    Description: Customer mnemonic
+    Type: String
+  networkVPCID:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  networkDomain:
+    Description: TH Domain name
+    Type: String
+  networkDBSubnetA:
+    Description: Public Subnet ID
+    Type: AWS::EC2::Subnet::Id
+  networkDBSubnetB:
+    Description: Public Subnet ID
+    Type: AWS::EC2::Subnet::Id
+  flavDeploymentType:
+    Description: Deployment - single or multi region
+    Type: String
+    Default: singleRegion
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  rds:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+
+#################################################################################
+#Conditions
+#################################################################################
+Conditions:
+  deployRds: !Equals [!Ref rds, 'true' ]
+
+
+#################################################################################
+#AMI mappings
+#################################################################################
+
+#future - use mappping to get db class for deployment size
+#Mappings:
+
+
+Resources:
+
+  thLookup:
+    Type: AWS::DynamoDB::Table
+    #futures - add sort key, global and local secondary indexes
+    Properties:
+      TableName: !Sub 'thglobal_dydlut_${genCustMne}'
+      KeySchema:
+        -
+          AttributeName: "treatmentid"
+          KeyType: "HASH"
+      AttributeDefinitions:
+        -
+          AttributeName: "treatmentid"
+          AttributeType: "S"
+
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification: 
+        SSEEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_dydlut_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+
+  thDBMaster:
+    Type: AWS::RDS::DBInstance
+    Condition: deployRds
+    Properties:
+      VPCSecurityGroups:
+      - Ref: thDBSecurityGroup
+  #Allocated storage needs to be at least 100gb if using iops. If you increase the Iops value (in 1,000 IOPS increments), then you must also increase the AllocatedStorage value (in 100-GB increments). 
+      AllocatedStorage: '5'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DBInstanceClass: db.t2.small
+      DBName:  !Sub 'thglobaldbmaster${genCustMne}'
+      DBSubnetGroupName: !Ref thDBSubnetGroup
+#future - put in provisioned iops (=>1000)
+#iops:
+#future - how to specific db edition ?
+      Engine: MySQL
+#Valid values: license-included | bring-your-own-license | general-public-license 
+      LicenseModel: general-public-license
+      MasterUsername: thuser
+      MasterUserPassword: thpassword
+      MultiAZ: true
+      PubliclyAccessible: false
+      PreferredBackupWindow: 19:00-20:00
+      PreferredMaintenanceWindow: Sun:22:00-Sun:23:00
+      PubliclyAccessible: false
+      StorageEncrypted: true
+#add StorageType of io1 alongside iops setting
+
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_dbmaster_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+    #DeletionPolicy: Snapshot
+
+
+  thDBReplicaA:
+    Type: AWS::RDS::DBInstance
+    Condition: deployRds
+    Properties:
+      VPCSecurityGroups:
+      - Ref: thDBSecurityGroup
+      AllocatedStorage: '5'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DBInstanceClass: db.t2.small
+      DBName:  !Sub 'thglobaldbreplicaA${genCustMne}'
+      DBSubnetGroupName: !Ref thDBSubnetGroup
+      Engine: MySQL
+      LicenseModel: general-public-license
+      MasterUsername: thuser
+      MasterUserPassword: thpassword
+      PubliclyAccessible: false
+      PreferredBackupWindow: 19:00-20:00
+      PreferredMaintenanceWindow: Sun:22:00-Sun:23:00
+      PubliclyAccessible: false
+      SourceDBInstanceIdentifier: !Ref thDBMaster
+      StorageEncrypted: true
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_dbreplicaA_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+    #DeletionPolicy: Snapshot
+
+  thDBReplicaB:
+    Type: AWS::RDS::DBInstance
+    Condition: deployRds
+    Properties:
+      VPCSecurityGroups:
+      - Ref: thDBSecurityGroup
+      AllocatedStorage: '5'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DBInstanceClass: db.t2.small
+      DBName:  !Sub 'thglobaldbreplicaB${genCustMne}'
+      DBSubnetGroupName: !Ref thDBSubnetGroup
+      Engine: MySQL
+      LicenseModel: general-public-license
+      MasterUsername: thuser
+      MasterUserPassword: thpassword
+      PubliclyAccessible: false
+      PreferredBackupWindow: 19:00-20:00
+      PreferredMaintenanceWindow: Sun:22:00-Sun:23:00
+      PubliclyAccessible: false
+      SourceDBInstanceIdentifier: !Ref thDBMaster
+      StorageEncrypted: true
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_dbreplicaB_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+    #DeletionPolicy: Snapshot
+
+
+  thDBSubnetGroup: 
+    Type: "AWS::RDS::DBSubnetGroup"
+    Condition: deployRds
+    Properties: 
+      DBSubnetGroupDescription: "Subnet group - master"
+      SubnetIds: 
+        - !Ref networkDBSubnetA
+        - !Ref networkDBSubnetB
+      Tags:
+      - Key: Name
+        Value: !Sub 'thglobal_dbsng_${genCustMne}'
+      - Key: THGlobal-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+#  thDBSubnetGroupRepA: 
+#    Type: "AWS::RDS::DBSubnetGroup"
+#    Properties: 
+#      DBSubnetGroupDescription: "Subnet group - replicaA"
+#      SubnetIds: 
+#        - !Ref networkDBSubnetA
+#      Tags:
+#      - Key: Name
+#        Value: !Sub 'thglobal_dbsngrepA_${genCustMne}'
+#      - Key: THGlobal-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref genCreated
+
+#  thDBSubnetGroupRepB: 
+#    Type: "AWS::RDS::DBSubnetGroup"
+#    Properties: 
+#      DBSubnetGroupDescription: "Subnet group - replicaB"
+#      SubnetIds: 
+#        - !Ref networkDBSubnetB
+#      Tags:
+#      - Key: Name
+#        Value: !Sub 'thglobal_dbsngrepB_${genCustMne}'
+#      - Key: THGlobal-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref genCreated
+
+#future - add source ip range as wepp app subnets 
+  thDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: deployRds
+    Properties:
+      VpcId: !Ref networkVPCID
+      GroupName: !Sub 'thglobal_dbsg_${genCustMne}'
+      GroupDescription: "Security group for database"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        CidrIp: 0.0.0.0/0
+        Description: "dagnostic access"
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+

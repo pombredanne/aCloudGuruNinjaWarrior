@@ -5,7 +5,6 @@
 #future - use file name to denote if create or update
 #future - pass option to run single test
 #future - pass option to abort/continue on test failure
-#use argparse for command line options. Puf under if _main_
 
 import json
 import boto3
@@ -13,6 +12,7 @@ import traceback
 import datetime
 import os
 import time
+import argparse
 
 def main():
     
@@ -22,10 +22,24 @@ def main():
     stackName = "devtestPCSNFoundation"
     retryGap = 30
     status=""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-D','--deleteAfterCreate', help='Delete stack once created', required=False)
+    args = vars(parser.parse_args())
+    if args['deleteAfterCreate'] == "false":
+      deleteAfterCreate = False
+    else:
+      deleteAfterCreate = True
+       
     
     try:
 
        client = boto3.client('cloudformation')
+
+
+       ####################################
+       #Get test params
+       ####################################
 
        for file in os.listdir("testparams"):
           #filename = os.fsdecode(file)
@@ -44,24 +58,34 @@ def main():
              #print(params)
 
              startTime = datetime.datetime.now()
+       ####################################
+       #Logon to AWS and assume role
+       ####################################
              print("Logging on and assuming role ...")
              session = boto3.session.Session()
              credentials = session.get_credentials()
              current_credentials = credentials.get_frozen_credentials()
              sess = boto3.session.Session(aws_access_key_id=current_credentials.access_key, aws_secret_access_key=current_credentials.secret_key)
              sts_connection = sess.client('sts')
+             #in prod would create role arn from account number received from customer
              assume_role_object = sts_connection.assume_role(RoleArn="arn:aws:iam::813970735459:role/btpcsn_iam_role", RoleSessionName="pcsnSession",DurationSeconds=900)
              credentials = assume_role_object['Credentials']
 
+             #in prod would use region as paramter from region received from customer
              client = boto3.client('cloudformation',aws_access_key_id=credentials["AccessKeyId"],aws_secret_access_key=credentials["SecretAccessKey"],aws_session_token=credentials["SessionToken"])
              print("Logged on")
             
 
+       ####################################
+       #Create stack
+       ####################################
              print("Creating stack ...")
-             response_create_stack = client.create_stack(StackName=stackName, TemplateBody=template,Parameters=params,DisableRollback=True)
+
+             response_create_stack = client.create_stack(StackName=stackName, TemplateURL="https://s3.amazonaws.com/btdynspcsn/cftemplates/pcsn_cft_foundation.yml",Parameters=params,DisableRollback=True)
+
              print("Stack creation initiated")
              print("Checking for successful completion ...")
-             #stack = client.describe_stacks(StackName="vEdgeProtoLon")
+
 
              #just testing querying response object here
              #print(stack["Stacks"][0]["StackId"])
@@ -70,6 +94,9 @@ def main():
              #if "StackStatusReason" in stack["Stacks"][0]:  
              #   print(stack["Stacks"][0]["StackStatusReason"])
 
+       ####################################
+       #Poll for stack completion
+       ####################################
              stack = client.describe_stacks(StackName=stackName)
              status = stack["Stacks"][0]["StackStatus"]
              while status=="CREATE_IN_PROGRESS":
@@ -98,21 +125,25 @@ def main():
                 print("Stack completed successfully")
 
 
-             print("Deleting stack ...")
-             stack = client.delete_stack(StackName=stackName)
-             print("Stack deleted initiated")
-             stack = client.describe_stacks(StackName=stackName)
-             status = stack["Stacks"][0]["StackStatus"]
-             while status=="DELETE_IN_PROGRESS":
-                 time.sleep(retryGap)
-                 print("Checking for successful completion ...")
-                 try:
-                   stack = client.describe_stacks(StackName=stackName)
-                   status = stack["Stacks"][0]["StackStatus"]
-                 except Exception as e: 
-                   #continue as exception is expected if stack no long exists
-                   status="DELETED" 
-                   print("Stack deleted")
+       ####################################
+       #Delete stack
+       ####################################
+             if deleteAfterCreate == True:
+                print("Deleting stack ...")
+                stack = client.delete_stack(StackName=stackName)
+                print("Stack deleted initiated")
+                stack = client.describe_stacks(StackName=stackName)
+                status = stack["Stacks"][0]["StackStatus"]
+                while status=="DELETE_IN_PROGRESS":
+                    time.sleep(retryGap)
+                    print("Checking for successful completion ...")
+                    try:
+                       stack = client.describe_stacks(StackName=stackName)
+                       status = stack["Stacks"][0]["StackStatus"]
+                    except Exception as e: 
+                       #continue as exception is expected if stack no long exists
+                       status="DELETED" 
+                       print("Stack deleted")
                    
 
        #Print results

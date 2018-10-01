@@ -1,0 +1,145 @@
+#################################################################################
+#TH GLobal - storage
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TH Global - object storage'
+
+#
+#futures - cross region replication if required
+#
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  genCustName:
+    Description: Customer name
+    Type: String
+#  networkVPCID:
+#    Description: VPC ID
+#    Type: AWS::EC2::VPC::Id
+  flavDeploymentType:
+    Description: Deployment - single or multi region
+    Type: String
+    Default: singleRegion
+  genCreated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  genUpdated:
+    Description: Timestamp created
+    Type: String
+    Default: false
+
+#################################################################################
+#Conditions
+#################################################################################
+
+#TBD - might not need any - just use lin line ifs within properties
+#Conditions:
+#  multiRegionsingleFortinetFixed: !And [ !Equals [ !Ref VNFType, 'Fortinet' ] , !Equals [ !Ref DeploymentType, 'Fixed' ]   ]
+
+#################################################################################
+#Fortinet fixed - using routing vm to simulate fw
+#################################################################################
+#
+Resources:
+
+  #futures - move this into security template later
+  #futures - copy in policy form predefined key
+  #futures - tag key ?
+  #bucketKey:
+  #  Type: AWS::KMS::Key
+  #  Properties:
+  #    Description: "Key for S3 encryption"
+  #    KeyPolicy:
+  #      Version: "2012-10-17"
+  #      Id: "key-default-1"
+  #      Statement:
+  #      -
+  #        Sid: "Allow administration and use of the key"
+  #        Effect: "Allow"
+  #        Principal:
+  #          AWS: "arn:aws:iam::813970735459:user/AndyMcneill"
+  #        Action:
+  #          - "kms:*"
+  #        Resource: "*"
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccelerateConfiguration:
+        AccelerationStatus: Suspended
+      #future - analytics configuration. Amazon S3 analyzes your access patterns and suggests a candidate age to transition objects
+      #example - https://github.com/awsdocs/aws-cloudformation-user-guide/blob/master/doc_source/aws-properties-s3-bucket.md
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID: arn:aws:kms:us-east-1:813970735459:key/8d7f4e02-e4de-4a57-ae69-49ca2b35c0e6
+              SSEAlgorithm: 'aws:kms'
+      BucketName: !Sub 'thglobal-${genCustName}-practicereports'
+      #futures - create inventory and logging audit bucket. Need to give it log delivery permissions 
+      InventoryConfigurations:
+        - Destination:
+            BucketArn: arn:aws:s3:::btdynspcsn
+            Format: CSV
+          Enabled: true
+          Id: !Sub 'thglobal-${genCustName}-practicereports-inventory'
+          IncludedObjectVersions: All
+          ScheduleFrequency: Daily
+      LifecycleConfiguration:
+        Rules:
+        - Id: TransitionRule
+          Prefix: glacier
+          Status: Enabled
+          ExpirationInDays: '365'
+          Transitions:
+            - TransitionInDays: '40'
+              StorageClass: STANDARD_IA
+            - TransitionInDays: '80'
+              StorageClass: Glacier
+      LoggingConfiguration:
+        #futures - create inventory and logging audit bucket 
+        DestinationBucketName: btdynspcsn
+        LogFilePrefix: practicereports
+      #futures - metrics filtered by tag / prefix
+      #MetricsConfigurations
+      #futures - notifications to sns/sqs/lambda for specific actions
+      #NotificationConfiguration
+      #futures - enable replication (and versioning) if multi reigon switched on
+      #ReplicationConfiguration:
+      #  Role: !GetAtt [ReplicaRole, Arn]
+      #  Rules:
+      #  - Destination:
+      #      Bucket: !Sub arn:aws:s3:::${NAME}-${REGIONDEST}
+      #      StorageClass: STANDARD
+      #    Id: Backup
+      #    Prefix: ''
+      #    Status: Enabled
+      #VersioningConfiguration:
+      #  Status: Enabled
+
+      Tags:
+      - Key: TH-GLOBAL-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref genCreated
+
+
+
+
+#TBD - can't create folders here but can get a lambda custom funciton to do so
+
+#TBD - do we need a bucket policy ? or do all centrall from iam ?
+
+#
+#
+ 
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+#TBD
+

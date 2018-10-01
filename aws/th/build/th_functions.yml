@@ -1,0 +1,82 @@
+#################################################################################
+#TH Global - functions
+#################################################################################
+##futures - lambda operations helper functions here
+#
+#
+#functions will include
+#- s3  - create folders. define and invoke function here
+#- rds - create rds schema function. need to connect to db and load schema (from s3 ?). define and invoke function here ?
+#- ec2 - create key pairs
+#- web app - helper functions. s3 and others for web app to call. call api gateway internally
+#
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TH Global - functions'
+
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+  SubnetWAN:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+  SubnetLAN:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+  NaclWAN:
+    Description: NACL wan side
+    Type: String
+  NaclLAN:
+    Description: NACL lan side
+    Type: String
+  InstanceName:
+    Description: Instance Name
+    Type: String
+  UserData:
+    Description: Bootstrap data
+    Type: String
+    Default: false
+  VNFType:
+    Description: VNF Type
+    Type: String
+    Default: false
+  DeploymentType:
+    Description: Deployment - Fixed or Scaled
+    Type: String
+    Default: false
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  DevTest:
+    Description: Flag to trigger specific devtest actions
+    Type: String
+    Default: false
+  FlavourPerformance:
+    Description: Performance flavour
+    Type: String
+    Default: false
+  PlacementGroup:
+    Description: Placement group
+    Type: String
+#################################################################################
+#Conditions
+#################################################################################
+
+#Conditions:
+
+Resources:
+
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+

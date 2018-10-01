@@ -1,0 +1,110 @@
+#################################################################################
+#
+#futures - redshift, athena etc here. build 
+#
+#
+#
+#################################################################################
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Other VNFs.'
+
+#future - add in support for multi-AZ solution when available 
+#future - support keypairs
+#future - add instance termination protection
+#
+#Note this is just an example of patterns.
+#Fortinet and Riverbed sections
+
+#################################################################################
+#Input parameters
+#################################################################################
+Parameters:
+  VPCID:
+   Description: VPC ID
+   Type: AWS::EC2::VPC::Id
+  SubnetWAN:
+   Description: Subnet ID public wan side
+   Type: AWS::EC2::Subnet::Id
+  SubnetLAN:
+    Description: Subnet ID private lan side
+    Type: AWS::EC2::Subnet::Id
+  NaclWAN:
+    Description: NACL wan side
+    Type: String
+  NaclLAN:
+    Description: NACL lan side
+    Type: String
+  InstanceName:
+    Description: Instance Name
+    Type: String
+  UserData:
+    Description: Bootstrap data
+    Type: String
+    Default: false
+  VNFType:
+    Description: VNF Type
+    Type: String
+    Default: false
+  DeploymentType:
+    Description: Deployment - Fixed or Scaled
+    Type: String
+    Default: false
+  Created:
+    Description: Timestamp created
+    Type: String
+    Default: false
+  DevTest:
+    Description: Flag to trigger specific devtest actions
+    Type: String
+    Default: false
+  FlavourPerformance:
+    Description: Performance flavour
+    Type: String
+    Default: false
+  PlacementGroup:
+    Description: Placement group
+    Type: String
+#################################################################################
+#Conditions
+#################################################################################
+
+#Conditions:
+#  FortinetFixed: !And [ !Equals [ !Ref VNFType, 'Fortinet' ] , !Equals [ !Ref DeploymentType, 'Fixed' ]   ]
+
+#future - create lambda function which will periodically copy s3 into redshift
+
+Resources:
+
+  THthRSCluster: 
+    Type: "AWS::Redshift::Cluster"
+    Properties:
+      DBName: "mydb"
+      MasterUsername: "master"
+      MasterUserPassword: 
+        Ref: "MasterUserPassword"
+      NodeType: "ds2.xlarge"
+      ClusterType: "single-node"
+    Tags:
+    - Key: foo
+      Value: bar
+
+
+   THAthenaNamedQuery:
+     Type: AWS::Athena::NamedQuery
+     Properties:
+       Database: "swfnetadata"
+       Description: "A query that selects all aggregated data"
+       Name: "MostExpensiveWorkflow"
+       QueryString: >
+                    SELECT workflowname, AVG(activitytaskstarted) AS AverageWorkflow
+                    FROM swfmetadata
+                    WHERE year='17' AND GROUP BY workflowname
+                    ORDER BY AverageWorkflow DESC LIMIT 10
+
+
+#################################################################################
+#Outputs
+#################################################################################
+#Outputs:
+#  fortinetInstanceID:
+

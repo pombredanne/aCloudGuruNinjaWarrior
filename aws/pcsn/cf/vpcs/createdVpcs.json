@@ -1,0 +1,14 @@
+[
+    {
+        "Region": "eu-west-2", 
+        "VPCName": "demoVPC", 
+        "VPCID": "vpc-02358d1944b84d03b", 
+        "CIDR": "10.70.0.0/16"
+    }, 
+    {
+        "Region": "eu-west-1", 
+        "VPCName": "demoVPC", 
+        "VPCID": "vpc-0a86c2d1d8a7a5540", 
+        "CIDR": "10.70.0.0/16"
+    }
+]

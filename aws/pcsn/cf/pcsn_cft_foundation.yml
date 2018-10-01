@@ -38,6 +38,14 @@ Parameters:
   VNFServiceChain:
     Description: 'VNF Service chain in format WAN<->VNF<->VNF<->VNF<->Hosts'
     Type: String
+  NetworkPrimaryAZ:
+    Description: 'AZ to use for primary subnets.If not provided AZ a will be used'
+    Type: String
+    Default: false
+  NetworkSecondaryAZ:
+    Description: 'AZ to use for secondary subnets.If not provided AZ b will be used'
+    Type: String
+    Default: false
   FlavourResilience:
     Description: 'Resilience flavour'
     Type: String
@@ -151,6 +159,8 @@ Conditions:
    RiverbedMonitorOn: !Equals [ !Ref VNFRiverbedMonitor, 'true' ] 
    FlowLogsOn: !Equals [ !Ref MiscFlowLogs, 'true' ] 
    FirstPCSNInstance: !Equals [ !Ref MiscRegionInstance, 1 ]
+   PrimaryAZProvided: !Not [!Equals [ !Ref NetworkPrimaryAZ, false ] ]
+   SecondaryAZProvided: !Not [!Equals [ !Ref NetworkPrimaryAZ, false ] ]
 
 #################################################################################
 #Subnets
@@ -160,7 +170,8 @@ Resources:
   SubnetA1:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
+#      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.0/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -174,7 +185,8 @@ Resources:
   SubnetA2:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
+#      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
  #     CidrBlock: !If [ DevTest, !Ref MiscDevTestNokiaSDWANLANSubnet, !Sub '${NetworkAddressRange}.16/28']
       CidrBlock: !Sub '${NetworkAddressRange}.16/28'
       MapPublicIpOnLaunch: false
@@ -189,7 +201,8 @@ Resources:
   SubnetA3:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
+#      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.32/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -203,7 +216,8 @@ Resources:
   SubnetA4:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
+#      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.48/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -218,7 +232,8 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+#      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.64/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -233,7 +248,8 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+#      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.80/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -248,7 +264,8 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+#      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.96/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -263,7 +280,8 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+#      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.112/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -278,7 +296,8 @@ Resources:
   SubnetTestAppA:
     Type: 'AWS::EC2::Subnet'
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
+#      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.128/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -293,7 +312,8 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
+#      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.144/28'
       MapPublicIpOnLaunch: false
       VpcId: !Ref NetworkVPCID
@@ -1223,16 +1243,16 @@ Outputs:
     Value: 2
     Export:
       Name: !Sub '${AWS::StackName}-AZs'
-  AZA:
-    Description: 'AZ of A'
-    Value: !Select [0, !GetAZs '']
-    Export:
-      Name: !Sub '${AWS::StackName}-AZA'
-  AZB:
-    Description: 'AZ of B'
-    Value: !Select [1, !GetAZs '']
-    Export:
-      Name: !Sub '${AWS::StackName}-AZB'
+#  AZA:
+#    Description: 'AZ of A'
+#    Value: !Select [0, !GetAZs '']
+#    Export:
+#      Name: !Sub '${AWS::StackName}-AZA'
+#  AZB:
+#    Description: 'AZ of B'
+#    Value: !Select [1, !GetAZs '']
+#    Export:
+#      Name: !Sub '${AWS::StackName}-AZB'
 
  
  #Custom values required for VNF managers
