@@ -153,11 +153,11 @@ Resources:
 #             - !Sub "- uuid : ${UserDataCisco3}\n"
 #             - !Sub "- org : ${UserDataCisco4}"
       NetworkInterfaces:
-      - NetworkInterfaceId: !Ref vedgeWANENI
-        DeviceIndex: '0'
-      - NetworkInterfaceId: !Ref vedgeLANENI
-        DeviceIndex: '1'
       - NetworkInterfaceId: !Ref vedgeMGTENI
+        DeviceIndex: '0'
+      - NetworkInterfaceId: !Ref vedgeWANENI
+        DeviceIndex: '1'
+      - NetworkInterfaceId: !Ref vedgeLANENI
         DeviceIndex: '2'
       Tags:
       - Key: Name
@@ -192,23 +192,6 @@ Resources:
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
 
-  #LAN Network Interface
-  vedgeLANENI:
-    Type: AWS::EC2::NetworkInterface
-    Condition: CiscoSDWAN
-    DependsOn: vEdgeSecurityGroup
-    Properties:
-      SubnetId: !Ref SubnetLAN
-      GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
-      SourceDestCheck: 'false'
-      Tags:
-      - Key: Name
-        Value: !Sub '${InstanceName}_lan_eni'
-      - Key: BT-PCSN-RESOURCE
-        Value: true
-      - Key: Created
-        Value: !Ref Created
-
   #MGT Network Interface
   vedgeMGTENI:
     Type: AWS::EC2::NetworkInterface
@@ -238,6 +221,23 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub '${InstanceName}_wan_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
+  #LAN Network Interface
+  vedgeLANENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: CiscoSDWAN
+    DependsOn: vEdgeSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetLAN
+      GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_lan_eni'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
