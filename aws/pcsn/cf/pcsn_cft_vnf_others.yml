@@ -82,6 +82,12 @@ Mappings:
   FortinetAMIMap:
     us-east-1:
       "ami": "ami-a00ad1dd"
+    us-east-2:
+      "ami": "ami-0cce428737a4045a2"
+    eu-central-1:
+      "ami": "ami-07eea8c15e30c22ab"
+    ap-south-1:
+      "ami": "ami-0af844112b76ff47b"
     eu-west-2:
       "ami": "ami-e2a54385"
   FortinetInstanceTypeMap:
@@ -222,23 +228,24 @@ Resources:
         Value: !Ref Created
   
 #note - for now asumming fw always behind sdwan wan so eip for mgt only
+#commenting out for now as may not be required
   #EIP
-  fortinetMgtEIP:
-    Type: AWS::EC2::EIP
-    Condition: FortinetFixed
-    Properties:
-      Domain: 'vpc'
+  #fortinetMgtEIP:
+  #  Type: AWS::EC2::EIP
+  #  Condition: FortinetFixed
+  #  Properties:
+  #    Domain: 'vpc'
 
-  fortinetMgtEIPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Condition: FortinetFixed
-    Properties:
-      AllocationId:
-        Fn::GetAtt:
-        - fortinetMgtEIP
-        - AllocationId
-      NetworkInterfaceId:
-        Ref: fortinetMgtENI
+  #fortinetMgtEIPAssoc:
+  #  Type: AWS::EC2::EIPAssociation
+  #  Condition: FortinetFixed
+  #  Properties:
+  #    AllocationId:
+  #      Fn::GetAtt:
+  #      - fortinetMgtEIP
+  #      - AllocationId
+  #    NetworkInterfaceId:
+  #      Ref: fortinetMgtENI
 
 #################################################################################
 #Fortinet Autoscaling. JUST FOR INVESTIGATION AT MOMENT

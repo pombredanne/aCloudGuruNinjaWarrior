@@ -9,6 +9,7 @@ Description: 'Deploy testApp to PCSN.'
 #future - will need ami per region. so need region mapping here. will need to make public. When creating ami could use copy image
 #command to create image in every region. but how to keep same ami-id so can have same region map. Can't keep ami id so looks like
 #will need  python script to get ami id for each region, once re-registered and then update cf template with new region-ami mapping 
+#tbd - ensure testapp securtiy group allows icmp and iperf traffic 
 
 ##################################################################################
 #Inputs
@@ -48,7 +49,7 @@ Mappings:
     us-east-1:
       "testapp": "ami-ff98f380"
     eu-west-2:
-      "testapp": "ami-e2a54385"
+      "testapp": "ami-0a2ff8e2b2ed78dd7"
 
 
 ####################################################
@@ -69,6 +70,7 @@ Resources:
           DeleteOnTermination: true 
       InstanceType: t2.small
       ImageId: !FindInMap [AMIMap, !Ref "AWS::Region", "testapp"]
+      KeyName: 'pcsnTestServer'
       NetworkInterfaces:
       - NetworkInterfaceId: !Ref NetworkENITest 
         DeviceIndex: '0'
@@ -97,9 +99,9 @@ Resources:
           ToPort: '22'
           CidrIp: 0.0.0.0/0
           Description: "SSH access"
-        - IpProtocol: '1'
-          FromPort: '0'
-          ToPort: '0'
+        - IpProtocol: 'icmp'
+          FromPort: '-1'
+          ToPort: '-1'
           CidrIp: 0.0.0.0/0
           Description: "Ping test"
 

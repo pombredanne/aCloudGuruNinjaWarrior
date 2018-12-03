@@ -24,6 +24,10 @@ Parameters:
   SubnetLAN:
     Description: Subnet ID private lan side
     Type: AWS::EC2::Subnet::Id
+  SubnetMGT:
+    Description: Subnet ID mgt
+    Type: String
+    Default: false
   NaclWAN:
     Description: NACL wan side
     Type: String
@@ -89,8 +93,14 @@ Mappings:
   CiscoAMIMap:
     us-east-1:
       "ami": "ami-a00ad1dd"
+    us-east-2:
+      "ami": "ami-0c0b3169"
+    eu-central-1:
+      "ami": "ami-e2fffc09"
+    ap-south-1:
+      "ami": "ami-af3200c0"
     eu-west-2:
-      "ami": "ami-1b8e6f7c"
+      "ami": "ami-a00ad1dd"
   CiscoInstanceTypeMap:
     High:
 #future - get recommended instance types from cisco
@@ -99,9 +109,9 @@ Mappings:
       "type": "c4.large"
   NokiaAMIMap:
     us-east-1:
-      "ami": "ami-ff98f380"
+      "ami": "ami-050b6330a35ad0612"
     eu-west-2:
-      "ami": "ami-e2a54385"
+      "ami": "ami-0ee8f565596bc5d23"
   NokiaInstanceTypeMap:
     High:
 #note - Enhanced networking with the Elastic Network Adapter (ENA) is required for the 'c5.large'  
@@ -147,6 +157,8 @@ Resources:
         DeviceIndex: '0'
       - NetworkInterfaceId: !Ref vedgeLANENI
         DeviceIndex: '1'
+      - NetworkInterfaceId: !Ref vedgeMGTENI
+        DeviceIndex: '2'
       Tags:
       - Key: Name
         Value: !Sub '${InstanceName}'
@@ -174,9 +186,9 @@ Resources:
         ToPort: '12346'
         CidrIp: 0.0.0.0/0
         Description: "IPSEC from remote endpoints"
-      - IpProtocol: '1'
-        FromPort: '0'
-        ToPort: '0'
+      - IpProtocol: 'icmp'
+        FromPort: '-1'
+        ToPort: '-1'
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
 
@@ -197,6 +209,22 @@ Resources:
       - Key: Created
         Value: !Ref Created
 
+  #MGT Network Interface
+  vedgeMGTENI:
+    Type: AWS::EC2::NetworkInterface
+    Condition: CiscoSDWAN
+    DependsOn: vEdgeSecurityGroup
+    Properties:
+      SubnetId: !Ref SubnetMGT
+      GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
+      SourceDestCheck: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_mgt_eni'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
 
   #WAN Network Interface
   vedgeWANENI:
@@ -290,7 +318,7 @@ Resources:
     Properties:
       VpcId: !Ref VPCID
       GroupName: !Sub '${InstanceName}_sg'
-      GroupDescription: "Security group for Cisco SDWAN instance"
+      GroupDescription: "Security group for Nokia SDWAN instance"
       SecurityGroupIngress:
       - IpProtocol: tcp
         FromPort: '80'
@@ -337,9 +365,9 @@ Resources:
         ToPort: '443'
         CidrIp: 0.0.0.0/0
         Description: "Admin"
-      - IpProtocol: '1'
-        FromPort: '0'
-        ToPort: '0'
+      - IpProtocol: 'icmp'
+        FromPort: '-1'
+        ToPort: '-1'
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
 

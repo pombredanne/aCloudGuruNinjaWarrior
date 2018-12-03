@@ -7,6 +7,69 @@
         {
             "Region": "eu-west-1",
             "VPCName": "demoVPC", 
-            "CIDR": "10.70.0.0/16"
+            "CIDR": "10.71.0.0/16"
+        },
+        {
+            "Region": "us-east-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.72.0.0/16"
+        },
+        {
+            "Region": "us-east-2",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.73.0.0/16"
+        },
+        {
+            "Region": "us-west-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.74.0.0/16"
+        },
+        {
+            "Region": "us-west-2",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.75.0.0/16"
+        },
+        {
+            "Region": "ca-central-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.76.0.0/16"
+        },
+        {
+            "Region": "eu-central-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.77.0.0/16"
+        },
+        {
+            "Region": "ap-northeast-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.78.0.0/16"
+        },
+        {
+            "Region": "ap-northeast-2",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.79.0.0/16"
+        },
+        {
+            "Region": "ap-southeast-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.80.0.0/16"
+        },
+        {
+            "Region": "ap-southeast-2",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.81.0.0/16"
+        },
+        {
+            "Region": "ap-south-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.82.0.0/16"
+        },
+        {
+            "Region": "sa-east-1",
+            "VPCName": "demoVPC", 
+            "CIDR": "10.83.0.0/16"
         }
+
+
+
 ]

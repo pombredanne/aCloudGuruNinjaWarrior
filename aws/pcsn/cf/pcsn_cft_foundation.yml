@@ -7,6 +7,9 @@ Description: "PCSN foundation template"
 #################################################################################
 #Input parameters
 #################################################################################
+#
+#TBD - need to check on error around testapp route being in different network from IGW. At the moment can't replicate it.
+#
 #future - add parameter labels and meta data
 #future - look at use of stacksets (e.g for multiple accounts)
 #future - use regioninstance id in naming of lambda functions, dyd table and queues to avoid clash when creating more than one pcsn instance in a region
@@ -18,14 +21,21 @@ Description: "PCSN foundation template"
 #Standard ipv6 settings (don’t get a choice) vpc - /56 Subnet/64
 #Subnet address example 2a05:d01c:087b:a4		::/64
 #Add routes in ipv6
-#Securtiy groups in ipv6 Use ::/0  for all
+#Securiti groups in ipv6 Use ::/0  for all
+#
+#tbd - review naming. base everyting off stack name  instead of using region instance id ? would likely be cleaner
 
 
 
 Parameters:
+  #future - need to work out how to put a dummy VPCID here if creating a new one.
   NetworkVPCID:
     Description: 'ID of VPC to deploy PCSN to'
     Type: AWS::EC2::VPC::Id
+  NetworkVPCName:
+    Description: 'Name of new VPC to create'
+    Type: String
+    Default: 'false'
   NetworkAddressRange:
     Description: 'First 3 octects (in format aaa.bbb.ccc)of /24 address range to use for PCSN'
     Type: String
@@ -35,6 +45,7 @@ Parameters:
   NetworkInternalHostAddressRanges:
     Description: 'List of subnet address ranges inside VPC to route to upon ingress into VPC'
     Type: String
+    Default: 'None'
   VNFServiceChain:
     Description: 'VNF Service chain in format WAN<->VNF<->VNF<->VNF<->Hosts'
     Type: String
@@ -59,7 +70,7 @@ Parameters:
   VNFNokiaSDWANMgtAddressRanges:
     Description: 'List of address ranges VNF will be managed from'
     Type: String
-    Default: false
+    Default: 'None'
   VNFNokiaSDWANUserData:
     Description: 'User data for bootstrapping'
     Type: String
@@ -71,7 +82,7 @@ Parameters:
   VNFCiscoSDWANMgtAddressRanges:
     Description: 'List of address ranges VNF will be managed from'
     Type: String
-    Default: false
+    Default: 'None'
   VNFCiscoSDWANUserData:
     Description: 'User data item for bootstrapping'
     Type: String
@@ -83,7 +94,7 @@ Parameters:
   VNFFortinetMgtAddressRanges:
     Description: 'List of address ranges VNF will be managed from'
     Type: String
-    Default: false
+    Default: 'None'
   VNFFortinetUserData:
     Description: 'User data item for bootstrapping'
     Type: String
@@ -95,7 +106,7 @@ Parameters:
   VNFRiverbedMgtAddressRanges:
     Description: 'List of address ranges VNF will be managed from'
     Type: String
-    Default: false
+    Default: 'None'
   VNFRiverbedUserData:
     Description: 'User data item for bootstrapping'
     Type: String
@@ -115,7 +126,7 @@ Parameters:
   MiscDeployTestApp:
     Description: 'Deploy test application'
     Type: String
-    Default: 'true'
+    Default: 'false'
     AllowedValues: ['true','false']
   MiscDevTest:
     Description: 'Set to true for dev and testing. Triggers devtest env specific actions'
@@ -161,11 +172,48 @@ Conditions:
    FirstPCSNInstance: !Equals [ !Ref MiscRegionInstance, 1 ]
    PrimaryAZProvided: !Not [!Equals [ !Ref NetworkPrimaryAZ, false ] ]
    SecondaryAZProvided: !Not [!Equals [ !Ref NetworkPrimaryAZ, false ] ]
+   NewVPC:  !Not [!Equals [ !Ref NetworkVPCName, false ] ]
 
 #################################################################################
 #Subnets
 #################################################################################
 Resources:
+
+  #Create new VPC if one has been requested
+  NewNetworkVPCID:
+    Type: AWS::EC2::VPC
+    Condition: NewVPC
+    Properties:
+      CidrBlock: !Sub '${NetworkAddressRange}.0/24'
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
+      Tags:
+      - Key: Name
+        Value: !Sub '${NetworkVPCName}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref MiscTimeStampCreate
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: NewVPC
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub '${NetworkVPCName}_IGW'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref MiscTimeStampCreate
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: NewVPC
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
 
   SubnetA1:
     Type: 'AWS::EC2::Subnet'
@@ -174,10 +222,25 @@ Resources:
       AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.0/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_a1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_a1_${MiscRegionInstance}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref MiscTimeStampCreate
+  #for SDWAN VNFs needing separate mgt subnet (e.g vedge)
+  SubnetA1mgt:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
+      CidrBlock: !Sub '${NetworkAddressRange}.160/28'
+      MapPublicIpOnLaunch: false
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_a1mgt_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -190,10 +253,10 @@ Resources:
  #     CidrBlock: !If [ DevTest, !Ref MiscDevTestNokiaSDWANLANSubnet, !Sub '${NetworkAddressRange}.16/28']
       CidrBlock: !Sub '${NetworkAddressRange}.16/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_a2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_a2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -205,10 +268,10 @@ Resources:
       AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.32/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_a3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_a3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -220,10 +283,10 @@ Resources:
       AvailabilityZone: !If [ PrimaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.48/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_a4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_a4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -236,14 +299,16 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.64/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_b1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_b1_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
         Value: !Ref MiscTimeStampCreate
+
+#tbd - add mgt subnet  for b AZ here as well as route table etc
   SubnetB2:
     Type: 'AWS::EC2::Subnet'
     Condition: MultiAZ
@@ -252,10 +317,10 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.80/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_b2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_b2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -268,10 +333,10 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.96/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_b3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_b3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -284,10 +349,10 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.112/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_b4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_b4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -300,10 +365,10 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkPrimaryAZ, !Select [0, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.128/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_atst_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_atst_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -316,10 +381,10 @@ Resources:
       AvailabilityZone: !If [ SecondaryAZProvided, !Ref NetworkSecondaryAZ, !Select [1, !GetAZs ''] ]
       CidrBlock: !Sub '${NetworkAddressRange}.144/28'
       MapPublicIpOnLaunch: false
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_sub_${AWS::Region}_btst_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_sub_${AWS::Region}_btst_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -331,10 +396,21 @@ Resources:
   RouteTableA1: 
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_a1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_a1_${MiscRegionInstance}'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref MiscTimeStampCreate
+  RouteTableA1mgt: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_a1mgt_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -342,10 +418,10 @@ Resources:
   RouteTableA2: 
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_a2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_a2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -353,10 +429,10 @@ Resources:
   RouteTableA3: 
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_a3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_a3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -364,10 +440,10 @@ Resources:
   RouteTableA4: 
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_a4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_a4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -376,10 +452,10 @@ Resources:
     Condition: MultiAZ
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_b1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_b1_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -388,10 +464,10 @@ Resources:
     Type: 'AWS::EC2::RouteTable'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_b2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_b2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -400,10 +476,10 @@ Resources:
     Type: 'AWS::EC2::RouteTable'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_b3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_b3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -412,10 +488,10 @@ Resources:
     Type: 'AWS::EC2::RouteTable'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_b4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_b4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -423,10 +499,10 @@ Resources:
   RouteTableTestAppA: 
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_atst_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_atst_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -435,10 +511,10 @@ Resources:
     Type: 'AWS::EC2::RouteTable'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_rt_${AWS::Region}_btst_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_rt_${AWS::Region}_btst_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -448,6 +524,11 @@ Resources:
     Properties:
       SubnetId: !Ref SubnetA1
       RouteTableId: !Ref RouteTableA1
+  RouteTableAssociationA1mgt:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA1mgt
+      RouteTableId: !Ref RouteTableA1mgt
   RouteTableAssociationA2:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
@@ -499,19 +580,39 @@ Resources:
       SubnetId: !Ref SubnetTestAppB
       RouteTableId: !Ref RouteTableTestAppB
 
+  #tbd - probably put these into the routing function at a later date
+  WANRouteA:
+    Type: AWS::EC2::Route
+    Condition: NewVPC
+    DependsOn: InternetGateway
+    Properties:
+      RouteTableId: !Ref RouteTableA1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  TestAppRouteA:
+    Type: AWS::EC2::Route
+    Condition: NewVPC
+    DependsOn: InternetGateway
+    Properties:
+      RouteTableId: !Ref RouteTableTestAppA
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+#future routing for wan subnet B
+#future routing for test app B
       
 #################################################################################
 #Network ACLs
 #################################################################################
-#future - create nacls for teat app
-
+#future - create nacls for test app and new mgt subnets
   NetworkAclA1:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_a1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_a1_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -519,10 +620,10 @@ Resources:
   NetworkAclA2:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_a2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_a2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -530,10 +631,10 @@ Resources:
   NetworkAclA3:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_a3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_a3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -541,10 +642,10 @@ Resources:
   NetworkAclA4:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_a4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_a4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -553,10 +654,10 @@ Resources:
     Type: 'AWS::EC2::NetworkAcl'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_b1_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_b1_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -565,10 +666,10 @@ Resources:
     Type: 'AWS::EC2::NetworkAcl'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_b2_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_b2_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -577,10 +678,10 @@ Resources:
     Type: 'AWS::EC2::NetworkAcl'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_b3_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_b3_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -589,10 +690,10 @@ Resources:
     Type: 'AWS::EC2::NetworkAcl'
     Condition: MultiAZ
     Properties:
-      VpcId: !Ref NetworkVPCID
+      VpcId: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_nacl_${AWS::Region}_b4_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_nacl_${AWS::Region}_b4_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -812,7 +913,7 @@ Resources:
 #################################################################################
 #Key pairs
 #################################################################################
-#future. Can't create key pairs directoyl from cf. Need to use custom resource. See link below. For now just use user/pw logon 
+#future. Can't create key pairs directory from cf. Need to use custom resource. See link below. For now just use user/pw logon 
 #https://xebia.com/blog/deploying-private-key-pairs-aws-cloudformation
   
 #################################################################################
@@ -822,6 +923,8 @@ Resources:
 #future - pass in params for second subnet for HA. Likely need a HA version of the resource using the multiAZ condition where A and B info is passed
 #future - maybe create EIPs here and passthrough to vnf stack. but may be quick specific to vnf so for now leave to vnf stack
 
+
+#tbd - for cisco and nokia add in ability to request specific addresses for wan/lan enis and request pre-bootstrapped ami's
   CiscoSDWANStack:
     Type: AWS::CloudFormation::Stack
     Condition: DeployCiscoSDWAN
@@ -829,21 +932,22 @@ Resources:
       TemplateURL: https://s3.amazonaws.com/btdynspcsn/cftemplates/pcsn_cft_vnf_sdwan.yml
       TimeoutInMinutes: '5'
       Parameters:
-        VPCID: !Ref NetworkVPCID
-        InstanceName: !Sub 'btpcsn_vnf_ciscosdwan_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        VPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
+        InstanceName: !Sub '${AWS::StackName}_vnf_ciscosdwan_${AWS::Region}_${MiscRegionInstance}'
         SubnetWAN: !Ref SubnetA1
         SubnetLAN: !Ref SubnetA2
+        SubnetMGT: !Ref SubnetA1mgt
         NaclWAN: !Ref NetworkAclA1
         NaclLAN: !Ref NetworkAclA2
         PlacementGroup: !Ref PlacementGroupA
         FlavourPerformance: !Ref FlavourPerformance
         SDWANType: 'Cisco'
         UserDataCisco: !Ref VNFCiscoSDWANUserData
-        DevTest: !Ref MiscDevTest
+        MiscDevTest: !Ref MiscDevTest
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_ciscosdwan_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_ciscosdwan_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -856,8 +960,8 @@ Resources:
       TemplateURL: https://s3.amazonaws.com/btdynspcsn/cftemplates/pcsn_cft_vnf_sdwan.yml
       TimeoutInMinutes: '5'
       Parameters:
-        VPCID: !Ref NetworkVPCID
-        InstanceName:  !Sub 'btpcsn_vnf_nokiasdwan_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        VPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
+        InstanceName:  !Sub '${AWS::StackName}_vnf_nokiasdwan_${AWS::Region}_${MiscRegionInstance}'
         SubnetWAN: !Ref SubnetA1
         SubnetLAN: !Ref SubnetA2
         NaclWAN: !Ref NetworkAclA1
@@ -872,7 +976,7 @@ Resources:
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_nokiasdwan_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_nokiasdwan_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -886,8 +990,8 @@ Resources:
       TemplateURL: https://s3.amazonaws.com/btdynspcsn/cftemplates/pcsn_cft_vnf_others.yml
       TimeoutInMinutes: '5'
       Parameters:
-        VPCID: !Ref NetworkVPCID
-        InstanceName:  !Sub 'btpcsn_vnf_fortinet_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        VPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
+        InstanceName:  !Sub '${AWS::StackName}_vnf_fortinet_${AWS::Region}_${MiscRegionInstance}'
         SubnetWAN: !Ref SubnetA2
         SubnetLAN: !Ref SubnetA3
         NaclWAN: !Ref NetworkAclA2
@@ -901,7 +1005,7 @@ Resources:
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_fortinet_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_fortinet_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -927,7 +1031,7 @@ Resources:
         MiscTimeStampUpdate: !Ref MiscTimeStampUpdate
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_riverbed_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_riverbed_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -945,16 +1049,16 @@ Resources:
        TemplateURL: https://s3.amazonaws.com/btdynspcsn/cftemplates/pcsn_cft_testapp.yml
        TimeoutInMinutes: '15'
        Parameters:
-          VPCID: !Ref NetworkVPCID
+          VPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
           SubnetTestID: !Ref SubnetTestAppA
-          InstanceNameTest: !Sub 'btpcsn_vnf_testApp_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+          InstanceNameTest: !Sub '${AWS::StackName}_vnf_testApp_${AWS::Region}_${MiscRegionInstance}'
           Created: !Ref MiscTimeStampCreate
-          RequestQueue: !Sub 'btpcsn_sqs_testapp_req_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
-          ResponseQueue: !Sub 'btpcsn_sqs_testapp_resp_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+          RequestQueue: !Sub '${AWS::StackName}_sqs_testapp_req_${AWS::Region}_${MiscRegionInstance}'
+          ResponseQueue: !Sub '${AWS::StackName}_sqs_testapp_resp_${AWS::Region}_${MiscRegionInstance}'
 
        Tags:
        - Key: Name
-         Value: !Sub 'btpcsn_cfs_testApp_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+         Value: !Sub '${AWS::StackName}_cfs_testApp_${AWS::Region}_${MiscRegionInstance}'
        - Key: BT-PCSN-RESOURCE
          Value: true
        - Key: Created
@@ -967,7 +1071,7 @@ Resources:
   LAMUpdateRouting:
     Type: "AWS::Lambda::Function"
     Properties:
-      FunctionName: 'btpcsn_lam_updateRouting' 
+      FunctionName: !Sub 'btpcsn_lam_updateRouting_${MiscRegionInstance}' 
       Handler: lambda_function.lambda_handler
       Runtime: python3.6
       Description: >-
@@ -977,8 +1081,8 @@ Resources:
       Timeout: 10
       Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
       Code: 
-         S3Bucket: "btdynspcsn"
-         S3Key: "lamfunctions/btpcsn_lam_updateRouting.zip"
+         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
+         S3Key: "lambda/btpcsn_lam_updateRouting.zip"
       Tags:
       - Key: BT-PCSN-RESOURCE
         Value: true
@@ -987,7 +1091,7 @@ Resources:
   LAMLogActivity:
     Type: "AWS::Lambda::Function"
     Properties:
-      FunctionName: 'btpcsn_lam_logActivity' 
+      FunctionName: !Sub 'btpcsn_lam_logActivity_${MiscRegionInstance}' 
       Handler: lambda_function.lambda_handler
       Runtime: python3.6
       Description: >-
@@ -996,8 +1100,8 @@ Resources:
       Timeout: 10
       Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
       Code: 
-         S3Bucket: "btdynspcsn"
-         S3Key: "lamfunctions/btpcsn_lam_logActivity.zip"
+         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
+         S3Key: "lambda/btpcsn_lam_logActivity.zip"
       Tags:
       - Key: BT-PCSN-RESOURCE
         Value: true
@@ -1006,7 +1110,7 @@ Resources:
   LAMGetAdditionalNetworkInfo:
     Type: "AWS::Lambda::Function"
     Properties:
-      FunctionName: 'btpcsn_lam_getAdditionalNetworkInfo' 
+      FunctionName: !Sub 'btpcsn_lam_getAdditionalNetworkInfo_${MiscRegionInstance}' 
       Handler: lambda_function.lambda_handler
       Runtime: python3.6
       Description: >-
@@ -1015,39 +1119,19 @@ Resources:
       Timeout: 10
       Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
       Code: 
-         S3Bucket: "btdynspcsn"
-         S3Key: "lamfunctions/btpcsn_lam_getAdditionalNetworkInfo.zip"
+         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
+         S3Key: "lambda/btpcsn_lam_getAdditionalNetworkInfo.zip"
       Tags:
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
         Value: !Ref MiscTimeStampCreate
-#future - add in later
-#  LAMRunNetworkTests:
-#    Type: "AWS::Lambda::Function"
-#    Properties:
-#      FunctionName: 'btpcsn_lam_runNetworkTests' 
-#      Handler: lambda_function.lambda_handler
-#      Runtime: python3.6
-#      Description: >-
-#        BT PCSN - Run network tests to prove correct config upon create/modify.
-#      MemorySize: 128
-#      Timeout: 10
-#      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
-#      Code: 
-#        S3Bucket: "btdynspcsn"
-#        S3Key: "lamfunctions/btpcsn_lam_runNetworkTests.zip"
-#      Tags:
-#      - Key: BT-PCSN-RESOURCE
-#        Value: true
-#      - Key: Created
-#        Value: !Ref MiscTimeStampCreate
 
   DYDActivityLog:
     Type: AWS::DynamoDB::Table
     Properties:
       #TableName: "btpcsn_dyd_activityLog"
-      TableName: !Sub 'btpcsn_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+      TableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
       KeySchema:
         -
           AttributeName: "timeStamp"
@@ -1087,11 +1171,11 @@ Resources:
          SubnetB3: !If [MultiAZ, !Ref SubnetB3, ""]
          SubnetB4: !If [MultiAZ, !Ref SubnetB4, ""]
          FlavourResilience: !Ref FlavourResilience
-         NetworkVPCID: !Ref NetworkVPCID
+         NetworkVPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
          MiscRegionInstance: !Ref  MiscRegionInstance
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_flowlogs_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_flowlogs_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1112,12 +1196,12 @@ Resources:
       Parameters:
          InstanceID: !GetAtt NokiaSDWANStack.Outputs.nsgInstanceID
          VNFName: 'NokiaSDWAN'
-         AlarmNameBase: !Sub 'btpcsn_vnf_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+         AlarmNameBase: !Sub '${AWS::StackName}_vnf_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}'
          Created: !Ref MiscTimeStampCreate
 
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1132,12 +1216,12 @@ Resources:
       Parameters:
          InstanceID: !GetAtt CiscoSDWANStack.Outputs.vedgeInstanceID
          VNFName: 'CiscoSDWAN'
-         AlarmNameBase: !Sub 'btpcsn_vnf_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+         AlarmNameBase: !Sub '${AWS::StackName}_vnf_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}'
          Created: !Ref MiscTimeStampCreate
 
       Tags:
       - Key: Name
-        Value: !Sub 'btpcsn_cfs_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+        Value: !Sub '${AWS::StackName}_cfs_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
 
@@ -1151,10 +1235,10 @@ Resources:
     DependsOn: ["LAMUpdateRouting"]
     #DependsOn: ["LAMUpdateRouting","SubnetA1","SubnetA2","SubnetA3","SubnetA4","RouteTableA1","RouteTableA2","RouteTableA3","RouteTableA4","RouteTableAssociationA1","RouteTableAssociationA2","RouteTableAssociationA3","RouteTableAssociationA4","CiscoSDWANStack"]
     Properties:
-      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_updateRouting" 
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_updateRouting_${MiscRegionInstance}" 
       Region: !Sub '${AWS::Region}'
       invokeType: 'cf'
-      vpcID:  !Ref NetworkVPCID
+      vpcID:  !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
       serviceChain:  !Ref VNFServiceChain
       externalAddressRanges:  !Ref NetworkExternalAddressRanges
       customerHostSubnets:  !Ref NetworkInternalHostAddressRanges
@@ -1170,7 +1254,7 @@ Resources:
       eniWAN3:    !If [DeployRiverbed, !GetAtt FortinetStack.Outputs.riverbedWANENI, ""]
       eniLAN3:    !If [DeployRiverbed, !GetAtt FortinetStack.Outputs.riverbedLANENI, ""]
       enitestApp: !If [DeployTestApp, !GetAtt  TestAppStack.Outputs.NetworkENITest, ""]
-      testAppSubnet: !If [DeployTestApp, !Ref SubnetTestAppA, ""]
+      testAppSubnet: !If [DeployTestApp, !Sub '${NetworkAddressRange}.128/28', ""]
       NokiaSDWANMgtAddressRange: !If [DeployNokiaSDWAN, !Ref VNFNokiaSDWANMgtAddressRanges, ""]
       CiscoSDWANMgtAddressRange: !If [DeployCiscoSDWAN, !Ref VNFCiscoSDWANMgtAddressRanges, ""]
       FortinetMgtAddressRange: !If [DeployFortinet, !Ref VNFFortinetMgtAddressRanges, ""]
@@ -1186,7 +1270,7 @@ Resources:
 #    Type: Custom::GetAdditionalNetworkInfo
 #    Condition: DeployNokiaSDWAN
 #    Properties:
-#       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_getNetworkInfo" 
+#       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_getNetworkInfo_${MiscRegionInstance}" 
 #       Region: !Sub '${AWS::Region}'
 #       infoType: 'getEniMacAddress'
 #       eniID:  !GetAtt NokiaSDWANStack.NokiaWANENI
@@ -1201,13 +1285,13 @@ Resources:
     Type: Custom::LogActivity
     DependsOn: ["LAMLogActivity","DYDActivityLog","RunUpdateRouting"]
     Properties:
-       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_logActivity" 
+       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_logActivity_${MiscRegionInstance}" 
        Region: !Sub '${AWS::Region}'
        StackName: !Sub '${AWS::StackName}'
 #      params: "chain=SDWAN>FW;res=High Availability;perf=High;external_cidr=..." 
        params: !Join [ ":", [  !Sub 'NetworkAddressRange,=${NetworkAddressRange}', !Sub 'NetworkExternalAddressRanges=${NetworkExternalAddressRanges}', !Sub 'NetworkInternalHostAddressRanges=${NetworkInternalHostAddressRanges}', !Sub 'VNFServiceChain=${VNFServiceChain}', !Sub 'FlavourResilience=${FlavourResilience}', !Sub 'FlavourPerformance=${FlavourPerformance}', !Sub 'VNFNokiaSDWANMgtAddressRanges=${VNFNokiaSDWANMgtAddressRanges}', !Sub 'VNFNokiaSDWANUserData=${VNFNokiaSDWANUserData', !Sub 'VNFNokiaSDWANMonitor=${VNFNokiaSDWANMonitor}', !Sub 'VNFCiscoSDWANMgtAddressRanges=${VNFCiscoSDWANMgtAddressRanges}', !Sub 'VNFCiscoSDWANUserData=${VNFCiscoSDWANUserData}', !Sub 'CiscoSDWANMonitor=${VNFCiscoSDWANMonitor}', !Sub 'VNFFortinetMgtAddressRanges=${VNFFortinetMgtAddressRanges}', !Sub 'VNFFortinetUserData=${VNFFortinetUserData}', !Sub 'VNFFortinetMonitor=${VNFFortinetMonitor}', !Sub 'VNFRiverbedMgtAddressRanges=${VNFRiverbedMgtAddressRanges}', !Sub 'VNFRiverbedUserData=${VNFRiverbedUserData}', !Sub 'VNFRiverbedMonitor=${VNFRiverbedMonitor}', !Sub 'MiscFlowLogs=${MiscFlowLogs}', !Sub 'MiscRegionInstance=${MiscRegionInstance}', !Sub 'MiscDeployTestApp=${MiscDeployTestApp}', !Sub 'MiscDevTest=${MiscDevTest}', !Sub 'MiscTestAppTargetAddresses=${MiscTestAppTargetAddresses}', !Sub 'MiscTimeStampCreate=${MiscTimeStampCreate}', !Sub 'MiscTimeStampUpdate=${MiscTimeStampUpdate}' ]  ]
-       #logTableName: 'btpcsn_dyd_activityLog'
-       logTableName: !Sub 'btpcsn_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}_${NetworkVPCID}'
+       #logTableName: '${AWS::StackName}_dyd_activityLog'
+       logTableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
        invokeType: 'cf'
        Tags:
        - Key: BT-PCSN-RESOURCE
@@ -1234,6 +1318,7 @@ Resources:
 #################################################################################
 #Outputs
 #################################################################################
+#future - get ip address outputs from VNFs and testapp
 Outputs:
   StackName:
     Description: 'Stack name.'

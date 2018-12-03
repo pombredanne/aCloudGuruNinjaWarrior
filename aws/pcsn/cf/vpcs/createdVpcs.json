@@ -1,14 +1,86 @@
 [
     {
         "Region": "eu-west-2", 
-        "VPCName": "demoVPC", 
-        "VPCID": "vpc-02358d1944b84d03b", 
+        "VPCName": "demoVPC_eu-west-2", 
+        "VPCID": "vpc-0b517f67cea094a89", 
         "CIDR": "10.70.0.0/16"
     }, 
     {
         "Region": "eu-west-1", 
-        "VPCName": "demoVPC", 
-        "VPCID": "vpc-0a86c2d1d8a7a5540", 
-        "CIDR": "10.70.0.0/16"
+        "VPCName": "demoVPC_eu-west-1", 
+        "VPCID": "vpc-0cb2e0f6f503d71e2", 
+        "CIDR": "10.71.0.0/16"
+    }, 
+    {
+        "Region": "us-east-1", 
+        "VPCName": "demoVPC_us-east-1", 
+        "VPCID": "vpc-0876989af674cee52", 
+        "CIDR": "10.72.0.0/16"
+    }, 
+    {
+        "Region": "us-east-2", 
+        "VPCName": "demoVPC_us-east-2", 
+        "VPCID": "vpc-0571cd937d1cfc242", 
+        "CIDR": "10.73.0.0/16"
+    }, 
+    {
+        "Region": "us-west-1", 
+        "VPCName": "demoVPC_us-west-1", 
+        "VPCID": "vpc-0d1bfb46ddd9fa19d", 
+        "CIDR": "10.74.0.0/16"
+    }, 
+    {
+        "Region": "us-west-2", 
+        "VPCName": "demoVPC_us-west-2", 
+        "VPCID": "vpc-00492ecabbf79715b", 
+        "CIDR": "10.75.0.0/16"
+    }, 
+    {
+        "Region": "ca-central-1", 
+        "VPCName": "demoVPC_ca-central-1", 
+        "VPCID": "vpc-01e6860bfb17b25b3", 
+        "CIDR": "10.76.0.0/16"
+    }, 
+    {
+        "Region": "eu-central-1", 
+        "VPCName": "demoVPC_eu-central-1", 
+        "VPCID": "vpc-0841de7ae7fd59bf6", 
+        "CIDR": "10.77.0.0/16"
+    }, 
+    {
+        "Region": "ap-northeast-1", 
+        "VPCName": "demoVPC_ap-northeast-1", 
+        "VPCID": "vpc-0414d32f33bc98ef3", 
+        "CIDR": "10.78.0.0/16"
+    }, 
+    {
+        "Region": "ap-northeast-2", 
+        "VPCName": "demoVPC_ap-northeast-2", 
+        "VPCID": "vpc-01212201ca9eca1e9", 
+        "CIDR": "10.79.0.0/16"
+    }, 
+    {
+        "Region": "ap-southeast-1", 
+        "VPCName": "demoVPC_ap-southeast-1", 
+        "VPCID": "vpc-0913972cc5f45439f", 
+        "CIDR": "10.80.0.0/16"
+    }, 
+    {
+        "Region": "ap-southeast-2", 
+        "VPCName": "demoVPC_ap-southeast-2", 
+        "VPCID": "vpc-008199d4f3f5a133d", 
+        "CIDR": "10.81.0.0/16"
+    }, 
+    {
+        "Region": "ap-south-1", 
+        "VPCName": "demoVPC_ap-south-1", 
+        "VPCID": "vpc-0c6d8ae0274967058", 
+        "CIDR": "10.82.0.0/16"
+    }, 
+    {
+        "Region": "sa-east-1", 
+        "VPCName": "demoVPC_sa-east-1", 
+        "VPCID": "vpc-07cb4016f4cc85fc3", 
+        "CIDR": "10.83.0.0/16"
     }
 ]

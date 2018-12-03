@@ -38,19 +38,19 @@ def main():
              #print(params)
 
           for vpcInput in params:
-             print(vpcInput)
-             vpcName = vpcInput['VPCName']
              print("Creating VPC ... ")
+             print(vpcInput)
+             vpcName = vpcInput['VPCName'] + "_" +  vpcInput['Region'] 
              ec2 = boto3.resource('ec2',region_name=vpcInput['Region']) 
              vpc = ec2.create_vpc(CidrBlock=vpcInput['CIDR'])
              vpc.create_tags(Tags=[{"Key": "Name", "Value": vpcName}]) 
              vpc.wait_until_available() 
-             print(vpc.id) 
+             #print(vpc.id) 
              vpcIdentifier = vpc.id
-             print(vpcIdentifier)
+             #print(vpcIdentifier)
              #createdVpcs.append(vpc.id)
 
-             newVpc = {'VPCName': vpcInput['VPCName'], 'Region': vpcInput['Region'], 'CIDR': vpcInput['CIDR'], 'VPCID': vpcIdentifier  }
+             newVpc = {'VPCName': vpcName, 'Region': vpcInput['Region'], 'CIDR': vpcInput['CIDR'], 'VPCID': vpcIdentifier  }
              createdVpcs.append(newVpc)
 
              ig = ec2.create_internet_gateway() 
@@ -60,7 +60,7 @@ def main():
              print("Created VPC")
 
              # now write output to a file
-             print(createdVpcs)
+             #print(createdVpcs)
              with open('vpcs/createdVpcs.json', 'w') as vpcFile :
                 json.dump(createdVpcs, vpcFile, indent=4)
              vpcFile.close()
