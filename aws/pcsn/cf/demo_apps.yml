@@ -1,0 +1,203 @@
+##################################################################################
+#create apps for demo
+##################################################################################
+
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create apps for demo.'
+
+####################################################
+#Inputs
+####################################################
+
+Parameters:
+  VPCID:
+    Description: 'VPC ID'
+    Type: AWS::EC2::VPC::Id
+  IGWID:
+    Description: 'Internet gateway ID'
+    Type: String
+  HostSubnetAddress:
+    Description: 'Host Subnet Address'
+    Type: String
+  AppType:
+    Description: 'Demo App Type'
+    Type: String
+  AZ:
+    Description: 'Availability zone'
+    Type: String
+
+##################################################################################
+#Conditions
+#################################################################################
+Conditions:
+   isERP: !Equals [!Ref AppType, 'ERP' ]
+   isCRM: !Equals [!Ref AppType, 'CRM' ]
+
+
+####################################################
+#AMI map
+####################################################
+
+Mappings:
+  AMIMap:
+    us-east-1:
+#Odoo ami's
+      "erpApp": "ami-0a8a796074b96c0ae"
+    us-east-2:
+      "erpApp": "ami-052fbc5bfac95f398"
+#Windows ami's
+    eu-central-1:
+      "crmApp": "ami-06d6f7804eaa0825d"
+    ap-south-1:
+      "crmApp": "ami-0711d827876cdd81a"
+
+
+####################################################
+#Demo resources
+####################################################
+
+
+Resources:
+
+  AppSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref AZ
+      CidrBlock: !Ref HostSubnetAddress
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPCID
+      Tags:
+      - Key: Name
+        Value: !Sub 'DemoApp_sub'
+
+  AppRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPCID
+      Tags:
+      - Key: Name
+        Value: 'DemoApp_rt'
+
+  AppRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AppSubnet
+      RouteTableId: !Ref AppRouteTable
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref AppRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGWID
+
+
+
+  ERPInstance:
+    Type: AWS::EC2::Instance
+    Condition: isERP 
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: true 
+      InstanceType: t2.small
+      ImageId: !FindInMap [AMIMap, !Ref "AWS::Region", "erpApp"]
+      KeyName: 'demoAppErp'
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref AppENI 
+        DeviceIndex: '0'
+      Tags:
+      - Key: Name
+        Value: "DemoApp_ERP_instance"
+ 
+  CRMInstance:
+    Type: AWS::EC2::Instance
+    Condition: isCRM 
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: true 
+      InstanceType: t2.small
+      ImageId: !FindInMap [AMIMap, !Ref "AWS::Region", "crmApp"]
+      KeyName: 'demoAppCrm'
+      NetworkInterfaces:
+      - NetworkInterfaceId: !Ref AppENI 
+        DeviceIndex: '0'
+      Tags:
+      - Key: Name
+        Value: "DemoApp_CRM_instance"
+
+  SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: 'Security group for demo app'
+        GroupName: !Sub 'DemoApp_sg'
+        VpcId: !Ref VPCID 
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+          Description: "SSH access"
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+          Description: "HTTP access"
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+          Description: "HTTPS access"
+        - IpProtocol: tcp
+          FromPort: '3389'
+          ToPort: '3389'
+          CidrIp: 0.0.0.0/0
+          Description: "RDP access"
+        - IpProtocol: 'icmp'
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: 0.0.0.0/0
+          Description: "Ping test"
+
+          
+  AppENI:
+     Type: AWS::EC2::NetworkInterface
+     DependsOn: SecurityGroup
+     Properties:
+        SubnetId: !Ref AppSubnet
+        GroupSet: [!Ref 'SecurityGroup']
+        SourceDestCheck: 'true'
+        Tags:
+        - Key: Name
+          Value: "DemoApp_eni"
+
+  AppEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+           Domain: 'vpc'
+
+  EIPAssoc:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            AllocationId:
+               Fn::GetAtt:
+               - AppEIP
+               - AllocationId
+            NetworkInterfaceId: !Ref AppENI 
+
+
+####################################################
+#Outputs
+####################################################
+
+Outputs:
+  AppENI:
+    Description: Public static IP address of app
+    Value:
+      Ref: AppEIP
+
+

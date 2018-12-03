@@ -1,0 +1,24 @@
+#This will be a potential new stack just for synthetic network testingo
+#
+#        Value: !Ref MiscTimeStampCreate
+#future - add in later
+#  LAMRunNetworkTests:
+#    Type: "AWS::Lambda::Function"
+#    Properties:
+#      FunctionName: '${AWS::StackName}_lam_runNetworkTests'
+#      Handler: lambda_function.lambda_handler
+#      Runtime: python3.6
+#      Description: >-
+#        BT PCSN - Run network tests to prove correct config upon create/modify.
+#      MemorySize: 128
+#      Timeout: 10
+#      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+#      Code:
+#        S3Bucket: "btdynspcsn"
+#        S3Key: "lamfunctions/btpcsn_lam_runNetworkTests.zip"
+#      Tags:
+#      - Key: BT-PCSN-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref MiscTimeStampCreate
+

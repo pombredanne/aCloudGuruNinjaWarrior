@@ -1,0 +1,21 @@
+[
+    {
+        "TestResult": "PASS", 
+        "TestName": "ttest1", 
+        "Details": "PING 151.101.0.81 (151.101.0.81) 56(84) bytes of data.,64 bytes from 151.101.0.81: icmp_seq=1 ttl=54 time=1.08 ms,64 bytes from 151.101.0.81: icmp_seq=2 ttl=54 time=1.14 ms,64 bytes from 151.101.0.81: icmp_seq=3 ttl=54 time=1.08 ms,,--- 151.101.0.81 ping statistics ---,3 packets transmitted, 3 received, 0% packet loss, time 2002ms,rtt min/avg/max/mdev = 1.083/1.106/1.149/0.030 ms,", 
+        "Diagnostics": "N/A", 
+        "TestEndPointTarget": "151.101.0.81", 
+        "TestProtocol": "ping"
+    }, 
+    {
+        "TestResult": "FAIL", 
+        "TestName": "ttest2", 
+        "Details": "PING 10.70.0.1 (10.70.0.1) 56(84) bytes of data.,,--- 10.70.0.1 ping statistics ---,3 packets transmitted, 0 received, 100% packet loss, time 2025ms,,", 
+        "Diagnostics": {
+            "Check2": "blah", 
+            "Check1": "blah"
+        }, 
+        "TestEndPointTarget": "10.70.0.1", 
+        "TestProtocol": "ping"
+    }
+]

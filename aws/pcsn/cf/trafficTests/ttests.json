@@ -1,0 +1,13 @@
+[
+        {
+            "TestName": "ttest1",
+            "TestProtocol": "ping", 
+            "TestEndPointTarget": "151.101.0.81"
+        },
+        {
+            "TestName": "ttest2",
+            "TestProtocol": "ping", 
+            "TestEndPointTarget": "10.70.0.1"
+        }
+
+]

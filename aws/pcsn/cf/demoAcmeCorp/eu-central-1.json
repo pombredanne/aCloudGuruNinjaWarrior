@@ -1,0 +1,38 @@
+[
+        {
+            "ParameterKey": "NetworkVPCID", 
+            "ParameterValue": "vpc-067290c4e8c0bdcb8"
+        },
+        {
+            "ParameterKey": "NetworkAddressRange", 
+            "ParameterValue": "10.32.20"
+        },
+        {
+            "ParameterKey": "NetworkExternalAddressRanges", 
+            "ParameterValue": "10.29.20.0/24,10.30.20.0/24,10.31.20.0/24"
+        },
+        {
+            "ParameterKey": "NetworkInternalHostAddressRanges",
+            "ParameterValue": "10.32.10.0/24"
+        },
+        {
+            "ParameterKey": "VNFServiceChain", 
+            "ParameterValue": "WAN<->Cisco SDWAN<->Fortinet<->Hosts"
+        },
+        {
+            "ParameterKey": "NetworkPrimaryAZ", 
+            "ParameterValue": "eu-central-1a"
+        },
+        {
+            "ParameterKey": "VNFCiscoSDWANUserData", 
+            "ParameterValue":  "#cloud-config\nvinitparam:\n- otp : 2012c9292fdcccb0aa77be09bd4d5160\n- vbond : vbond-259910.viptela.net\n- uuid : 52c7911f-c5b0-45df-b826-3155809a2a1a\n - org : BT WNBA - 20446"
+        },
+        {
+            "ParameterKey": "MiscTimeStampCreate", 
+            "ParameterValue": "Nov132018"
+        },
+        {
+            "ParameterKey": "MiscTimeStampUpdate", 
+            "ParameterValue": "Nov132018"
+        }
+]

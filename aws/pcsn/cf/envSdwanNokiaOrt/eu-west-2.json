@@ -1,0 +1,62 @@
+[
+        {
+            "ParameterKey": "NetworkVPCID", 
+            "ParameterValue": "vpc-8baebde2"
+        },
+        {
+            "ParameterKey": "NetworkVPCName", 
+            "ParameterValue": "envSdwanNokiaOrt"
+        },
+        {
+            "ParameterKey": "NetworkAddressRange", 
+            "ParameterValue": "10.0.44"
+        },
+        {
+            "ParameterKey": "NetworkExternalAddressRanges", 
+            "ParameterValue": "172.92.10.0/24,172.11.11.0/24,172.11.12.0/24"
+        },
+        {
+            "ParameterKey": "VNFServiceChain", 
+            "ParameterValue": "WAN<->Nokia SDWAN<->Hosts"
+        },
+        {
+            "ParameterKey": "NetworkPrimaryAZ", 
+            "ParameterValue": "eu-west-2a"
+        },
+        {
+            "ParameterKey": "FlavourResilience", 
+            "ParameterValue": "SingleAZ"
+        },
+        {
+            "ParameterKey": "FlavourPerformance", 
+            "ParameterValue": "Restricted"
+        },
+        {
+            "ParameterKey": "VNFNokiaSDWANUserData", 
+            "ParameterValue": "#cloud-config\naws_image: true"
+        },
+        {
+            "ParameterKey": "MiscFlowLogs", 
+            "ParameterValue": "false"
+        },
+        {
+            "ParameterKey": "MiscRegionInstance", 
+            "ParameterValue": "1"
+        },
+        {
+            "ParameterKey": "MiscDeployTestApp", 
+            "ParameterValue": "true"
+        },
+        {
+            "ParameterKey": "MiscDevTest", 
+            "ParameterValue": "false"
+        },
+        {
+            "ParameterKey": "MiscTimeStampCreate", 
+            "ParameterValue": "Nov132018"
+        },
+        {
+            "ParameterKey": "MiscTimeStampUpdate", 
+            "ParameterValue": "Nov132018"
+        }
+]
