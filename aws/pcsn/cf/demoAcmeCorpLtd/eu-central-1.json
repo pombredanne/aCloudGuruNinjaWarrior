@@ -17,7 +17,7 @@
         },
         {
             "ParameterKey": "VNFServiceChain", 
-            "ParameterValue": "WAN<->Cisco SDWAN<->Hosts"
+            "ParameterValue": "WAN<->Cisco SDWAN<->Fortinet<->Hosts"
         },
         {
             "ParameterKey": "NetworkPrimaryAZ", 
@@ -25,7 +25,7 @@
         },
         {
             "ParameterKey": "VNFCiscoSDWANUserData", 
-            "ParameterValue":  "#cloud-config\nvinitparam:\n - otp : af85d5f3a0fdfc5a8bb53ea97d15b769\n - vbond : vbond-259910.viptela.net\n - uuid : 52c7911f-c5b0-45df-b826-3155809a2a1a\n - org : BT WNBA - 20446"
+            "ParameterValue":  "#cloud-config\nvinitparam:\n - otp : ec2c23fe338e8a8d0b4b070839dfa940\n - vbond : vbond-259910.viptela.net\n - uuid : 52c7911f-c5b0-45df-b826-3155809a2a1a\n - org : BT WNBA - 20446"
         },
         {
             "ParameterKey": "MiscTimeStampCreate", 

@@ -84,6 +84,8 @@ Mappings:
       "ami": "ami-a00ad1dd"
     us-east-2:
       "ami": "ami-0cce428737a4045a2"
+    us-west-1:
+      "ami": "ami-08449aa3a29edd725"
     eu-central-1:
       "ami": "ami-07eea8c15e30c22ab"
     ap-south-1:
@@ -146,13 +148,14 @@ Resources:
         Value: !Ref Created
 
  
+#tbd - check how to give 
   fortinetSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: Fortinet
     Properties:
       VpcId: !Ref VPCID
       GroupName: !Sub '${InstanceName}_sg'
-      GroupDescription: "Security group for Fortinet"
+      GroupDescription: "Security group for FW"
       SecurityGroupIngress:
       - IpProtocol: tcp
         FromPort: '22'
@@ -174,6 +177,13 @@ Resources:
         ToPort: '0'
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_sg'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
 
   #LAN Network Interface
   fortinetLANENI:
@@ -417,6 +427,11 @@ Outputs:
     Description: LAN ENI Id 
     Value:
       Ref: fortinetLANENI
+  fwWANAddress:
+    Condition: Fortinet
+    Description: WAN facing address of the newly created fw instance
+    Value: !GetAtt fortinetWANENI.PrimaryPrivateIpAddress
+
   fortinetMgtENI:
     Condition: Fortinet
     Description: LAN Mgt Id 

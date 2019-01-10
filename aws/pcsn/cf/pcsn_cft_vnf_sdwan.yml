@@ -92,15 +92,17 @@ Conditions:
 Mappings:
   CiscoAMIMap:
     us-east-1:
-      "ami": "ami-a00ad1dd"
+      "ami": "ami-1c333e63"
     us-east-2:
       "ami": "ami-0c0b3169"
+    us-west-1:
+      "ami": "ami-e600ed85"
     eu-central-1:
       "ami": "ami-e2fffc09"
     ap-south-1:
       "ami": "ami-af3200c0"
     eu-west-2:
-      "ami": "ami-a00ad1dd"
+      "ami": "ami-61f71d06"
   CiscoInstanceTypeMap:
     High:
 #future - get recommended instance types from cisco
@@ -168,6 +170,10 @@ Resources:
         Value: !Ref Created
 
  
+#Future - need to split out sg for lan and wan. wan just needs rules for overlay protocol (and it's management). lan needs all traffic protocols but just on allowed subnets. 
+#Also consider if ingress and egress rules should be same. Egress is currently set to any.
+#also consider management subnet
+#Do same for Nokia.
   vEdgeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: CiscoSDWAN
@@ -180,7 +186,7 @@ Resources:
         FromPort: '22'
         ToPort: '22'
         CidrIp: 0.0.0.0/0
-        Description: "vedge ssg access"
+        Description: "vedge ssh access"
       - IpProtocol: udp
         FromPort: '12346'
         ToPort: '12346'
@@ -191,6 +197,23 @@ Resources:
         ToPort: '-1'
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 0.0.0.0/0
+        Description: "Traffic test"
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+        Description: "Traffic test"
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_sg'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
 
   #MGT Network Interface
   vedgeMGTENI:
@@ -200,7 +223,7 @@ Resources:
     Properties:
       SubnetId: !Ref SubnetMGT
       GroupSet: [!GetAtt vEdgeSecurityGroup.GroupId]
-      SourceDestCheck: 'false'
+      SourceDestCheck: 'true'
       Tags:
       - Key: Name
         Value: !Sub '${InstanceName}_mgt_eni'
@@ -244,30 +267,22 @@ Resources:
         Value: !Ref Created
 
   #EIP
-  vEdgeEIP:
-    Type: AWS::EC2::EIP
-    Condition: CiscoSDWAN
-    Properties:
-      Domain: 'vpc'
-#cf currently doesn't support tags on EIP
-#        Tags:
-#        - Key: Name
-#          Value: !Sub '${InstanceName}_wan_eip'
-#        - Key: BT-PCSN-RESOURCE
-#          Value: true
-#        - Key: Created
-#          Value: !Ref Created
+#  vEdgeEIP:
+#    Type: AWS::EC2::EIP
+#    Condition: CiscoSDWAN
+#    Properties:
+#      Domain: 'vpc'
 
-  vedgeEIPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Condition: CiscoSDWAN
-    Properties:
-      AllocationId:
-        Fn::GetAtt:
-        - vEdgeEIP
-        - AllocationId
-      NetworkInterfaceId:
-        Ref: vedgeWANENI
+#  vedgeEIPAssoc:
+#    Type: AWS::EC2::EIPAssociation
+#    Condition: CiscoSDWAN
+#    Properties:
+#      AllocationId:
+#        Fn::GetAtt:
+#        - vEdgeEIP
+#        - AllocationId
+#      NetworkInterfaceId:
+#        Ref: vedgeWANENI
 
 #################################################################################
 #Nokia NSG Resources
@@ -370,6 +385,14 @@ Resources:
         ToPort: '-1'
         CidrIp: 0.0.0.0/0
         Description: "Ping test"
+      Tags:
+      - Key: Name
+        Value: !Sub '${InstanceName}_sg'
+      - Key: BT-PCSN-RESOURCE
+        Value: true
+      - Key: Created
+        Value: !Ref Created
+
 
   #future - just proving concept here. for production need to add wan and lan nacl entries for all nsgvedge ports.Just allow all outbound ? or allow ephermal port range plus specific ports ?
   #nsgAclEntryWanIn1:
@@ -452,6 +475,7 @@ Resources:
       - Key: Created
         Value: !Ref Created
 
+#tbd - do same as has been done for cisco. allocate EIPs at end in foundation template
   #EIP
   nsgEIP:
     Type: AWS::EC2::EIP
@@ -497,6 +521,10 @@ Outputs:
     Description: LAN ENI Id of the newly created vedge instance
     Value:
       Ref: vedgeLANENI
+  vedgeLANAddress:
+    Condition: CiscoSDWAN
+    Description: LAN address of the newly created vedge instance
+    Value: !GetAtt vedgeLANENI.PrimaryPrivateIpAddress
   nsgInstanceID:
     Condition: NokiaSDWAN
     Description: InstanceId of the newly created nsg instance

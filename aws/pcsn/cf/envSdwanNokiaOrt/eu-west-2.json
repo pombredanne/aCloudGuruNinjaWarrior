@@ -41,7 +41,7 @@
         },
         {
             "ParameterKey": "MiscRegionInstance", 
-            "ParameterValue": "1"
+            "ParameterValue": "2"
         },
         {
             "ParameterKey": "MiscDeployTestApp", 

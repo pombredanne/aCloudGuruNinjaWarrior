@@ -1,0 +1,21 @@
+#This will be a potential new stack just for audit logging
+#
+#RunLogActivity:
+    Type: Custom::LogActivity
+    DependsOn: ["LAMLogActivity","DYDActivityLog","RunUpdateRouting"]
+    Properties:
+       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_logActivity_${MiscRegionInstance}"
+       Region: !Sub '${AWS::Region}'
+       StackName: !Sub '${AWS::StackName}'
+#      params: "chain=SDWAN>FW;res=High Availability;perf=High;external_cidr=..."
+       params: !Join [ ":", [  !Sub 'NetworkAddressRange,=${NetworkAddressRange}', !Sub 'NetworkExternalAddressRanges=${NetworkExternalAddressRanges}', !Sub 'NetworkInternalHostAddressRanges=${NetworkInternalHostAddressRanges}', !Sub 'VNFServiceChain=${VNFServiceChain}', !Sub 'FlavourResilience=${FlavourResilience}', !Sub 'FlavourPerformance=${FlavourPerformance}', !Sub 'VNFNokiaSDWANMgtAddressRanges=${VNFNokiaSDWANMgtAddressRanges}', !Sub 'VNFNokiaSDWANUserData=${VNFNokiaSDWANUserData', !Sub 'VNFNokiaSDWANMonitor=${VNFNokiaSDWANMonitor}', !Sub 'VNFCiscoSDWANMgtAddressRanges=${VNFCiscoSDWANMgtAddressRanges}', !Sub 'VNFCiscoSDWANUserData=${VNFCiscoSDWANUserData}', !Sub 'CiscoSDWANMonitor=${VNFCiscoSDWANMonitor}', !Sub 'VNFFortinetMgtAddressRanges=${VNFFortinetMgtAddressRanges}', !Sub 'VNFFortinetUserData=${VNFFortinetUserData}', !Sub 'VNFFortinetMonitor=${VNFFortinetMonitor}', !Sub 'VNFRiverbedMgtAddressRanges=${VNFRiverbedMgtAddressRanges}', !Sub 'VNFRiverbedUserData=${VNFRiverbedUserData}', !Sub 'VNFRiverbedMonitor=${VNFRiverbedMonitor}', !Sub 'MiscFlowLogs=${MiscFlowLogs}', !Sub 'MiscRegionInstance=${MiscRegionInstance}', !Sub 'MiscDeployTestApp=${MiscDeployTestApp}', !Sub 'MiscDevTest=${MiscDevTest}', !Sub 'MiscTestAppTargetAddresses=${MiscTestAppTargetAddresses}', !Sub 'MiscTimeStampCreate=${MiscTimeStampCreate}', !Sub 'MiscTimeStampUpdate=${MiscTimeStampUpdate}' ]  ]
+       #logTableName: '${AWS::StackName}_dyd_activityLog'
+       logTableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
+       invokeType: 'cf'
+       Tags:
+       - Key: BT-PCSN-RESOURCE
+         Value: true
+       - Key: Created
+         Value: !Ref MiscTimeStampCreate
+
+

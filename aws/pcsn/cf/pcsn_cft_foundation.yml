@@ -947,7 +947,7 @@ Resources:
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_ciscosdwan_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_ciscosdwan_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -976,7 +976,7 @@ Resources:
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_nokiasdwan_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_nokiasdwan_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -991,7 +991,8 @@ Resources:
       TimeoutInMinutes: '5'
       Parameters:
         VPCID: !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
-        InstanceName:  !Sub '${AWS::StackName}_vnf_fortinet_${AWS::Region}_${MiscRegionInstance}'
+#tbd - btfw name used temporarily for demo
+        InstanceName:  !Sub '${AWS::StackName}_vnf_btfw_${AWS::Region}_${MiscRegionInstance}'
         SubnetWAN: !Ref SubnetA2
         SubnetLAN: !Ref SubnetA3
         NaclWAN: !Ref NetworkAclA2
@@ -1005,7 +1006,7 @@ Resources:
         Created: !Ref MiscTimeStampCreate
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_fortinet_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_fortinet_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1031,7 +1032,7 @@ Resources:
         MiscTimeStampUpdate: !Ref MiscTimeStampUpdate
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_riverbed_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_riverbed_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1058,7 +1059,7 @@ Resources:
 
        Tags:
        - Key: Name
-         Value: !Sub '${AWS::StackName}_cfs_testApp_${AWS::Region}_${MiscRegionInstance}'
+         Value: !Sub '${AWS::StackName}_testApp_${AWS::Region}_${MiscRegionInstance}'
        - Key: BT-PCSN-RESOURCE
          Value: true
        - Key: Created
@@ -1071,7 +1072,7 @@ Resources:
   LAMUpdateRouting:
     Type: "AWS::Lambda::Function"
     Properties:
-      FunctionName: !Sub 'btpcsn_lam_updateRouting_${MiscRegionInstance}' 
+      FunctionName: !Sub '${AWS::StackName}_lam_updateRouting_${MiscRegionInstance}' 
       Handler: lambda_function.lambda_handler
       Runtime: python3.6
       Description: >-
@@ -1088,67 +1089,72 @@ Resources:
         Value: true
       - Key: Created
         Value: !Ref MiscTimeStampCreate
-  LAMLogActivity:
-    Type: "AWS::Lambda::Function"
-    Properties:
-      FunctionName: !Sub 'btpcsn_lam_logActivity_${MiscRegionInstance}' 
-      Handler: lambda_function.lambda_handler
-      Runtime: python3.6
-      Description: >-
-        BT PCSN - Logs create/modify/delete deployment activity.
-      MemorySize: 128
-      Timeout: 10
-      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
-      Code: 
-         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
-         S3Key: "lambda/btpcsn_lam_logActivity.zip"
-      Tags:
-      - Key: BT-PCSN-RESOURCE
-        Value: true
-      - Key: Created
-        Value: !Ref MiscTimeStampCreate
-  LAMGetAdditionalNetworkInfo:
-    Type: "AWS::Lambda::Function"
-    Properties:
-      FunctionName: !Sub 'btpcsn_lam_getAdditionalNetworkInfo_${MiscRegionInstance}' 
-      Handler: lambda_function.lambda_handler
-      Runtime: python3.6
-      Description: >-
-        BT PCSN - gets additional network info that isn't available from standard cloudformation.
-      MemorySize: 128
-      Timeout: 10
-      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
-      Code: 
-         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
-         S3Key: "lambda/btpcsn_lam_getAdditionalNetworkInfo.zip"
-      Tags:
-      - Key: BT-PCSN-RESOURCE
-        Value: true
-      - Key: Created
-        Value: !Ref MiscTimeStampCreate
 
-  DYDActivityLog:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      #TableName: "btpcsn_dyd_activityLog"
-      TableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
-      KeySchema:
-        -
-          AttributeName: "timeStamp"
-          KeyType: "HASH"
-      AttributeDefinitions: 
-        - 
-          AttributeName: "timeStamp"
-          AttributeType: "S"
+#removing from now. May use in future
+#  LAMLogActivity:
+#    Type: "AWS::Lambda::Function"
+#    Properties:
+#      FunctionName: !Sub 'btpcsn_lam_logActivity_${MiscRegionInstance}' 
+#      Handler: lambda_function.lambda_handler
+#      Runtime: python3.6
+#      Description: >-
+#        BT PCSN - Logs create/modify/delete deployment activity.
+#      MemorySize: 128
+#      Timeout: 10
+#      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+#      Code: 
+#         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
+#         S3Key: "lambda/btpcsn_lam_logActivity.zip"
+#      Tags:
+#      - Key: BT-PCSN-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref MiscTimeStampCreate
 
-      ProvisionedThroughput:
-        ReadCapacityUnits: "5"
-        WriteCapacityUnits: "5"
-      Tags:
-      - Key: BT-PCSN-RESOURCE
-        Value: true
-      - Key: Created
-        Value: !Ref MiscTimeStampCreate
+#removing from now. May use in future
+# LAMGetAdditionalNetworkInfo:
+#    Type: "AWS::Lambda::Function"
+#    Properties:
+#      FunctionName: !Sub 'btpcsn_lam_getAdditionalNetworkInfo_${MiscRegionInstance}' 
+#      Handler: lambda_function.lambda_handler
+#      Runtime: python3.6
+#      Description: >-
+#        BT PCSN - gets additional network info that isn't available from standard cloudformation.
+#      MemorySize: 128
+#      Timeout: 10
+#      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/btpcsn_iam_role'
+#      Code: 
+#         S3Bucket: !Sub "btdynspcsn-${AWS::Region}"
+#         S3Key: "lambda/btpcsn_lam_getAdditionalNetworkInfo.zip"
+#      Tags:
+#      - Key: BT-PCSN-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref MiscTimeStampCreate
+
+#removing from now. May use in future
+#  DYDActivityLog:
+#    Type: AWS::DynamoDB::Table
+#    Properties:
+#      #TableName: "btpcsn_dyd_activityLog"
+#      TableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
+#      KeySchema:
+#        -
+#          AttributeName: "timeStamp"
+#          KeyType: "HASH"
+#      AttributeDefinitions: 
+#        - 
+#          AttributeName: "timeStamp"
+#          AttributeType: "S"
+#
+#      ProvisionedThroughput:
+#        ReadCapacityUnits: "5"
+#        WriteCapacityUnits: "5"
+#      Tags:
+#      - Key: BT-PCSN-RESOURCE
+#        Value: true
+#      - Key: Created
+#        Value: !Ref MiscTimeStampCreate
 
   #future - add network tests dyd table here
   
@@ -1175,7 +1181,7 @@ Resources:
          MiscRegionInstance: !Ref  MiscRegionInstance
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_flowlogs_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_flowlogs_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1201,7 +1207,7 @@ Resources:
 
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_nokiasdwanMon_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
       - Key: Created
@@ -1221,7 +1227,7 @@ Resources:
 
       Tags:
       - Key: Name
-        Value: !Sub '${AWS::StackName}_cfs_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}'
+        Value: !Sub '${AWS::StackName}_ciscosdwanMon_${AWS::Region}_${MiscRegionInstance}'
       - Key: BT-PCSN-RESOURCE
         Value: true
 
@@ -1235,7 +1241,7 @@ Resources:
     DependsOn: ["LAMUpdateRouting"]
     #DependsOn: ["LAMUpdateRouting","SubnetA1","SubnetA2","SubnetA3","SubnetA4","RouteTableA1","RouteTableA2","RouteTableA3","RouteTableA4","RouteTableAssociationA1","RouteTableAssociationA2","RouteTableAssociationA3","RouteTableAssociationA4","CiscoSDWANStack"]
     Properties:
-      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_updateRouting_${MiscRegionInstance}" 
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}_lam_updateRouting_${MiscRegionInstance}" 
       Region: !Sub '${AWS::Region}'
       invokeType: 'cf'
       vpcID:  !If [NewVPC, !Ref NewNetworkVPCID, !Ref NetworkVPCID]
@@ -1250,11 +1256,14 @@ Resources:
       eniWAN1:    !If [DeployCiscoSDWAN, !GetAtt CiscoSDWANStack.Outputs.vedgeWANENI, !If [DeployNokiaSDWAN, !GetAtt NokiaSDWANStack.Outputs.nsgWANENI, ""]  ]
       eniLAN1:    !If [DeployCiscoSDWAN, !GetAtt CiscoSDWANStack.Outputs.vedgeLANENI, !If [DeployNokiaSDWAN, !GetAtt NokiaSDWANStack.Outputs.nsgLANENI, ""]  ]
       eniWAN2:    !If [DeployFortinet, !GetAtt FortinetStack.Outputs.fortinetWANENI, ""]
-      eniLAN2:    !If [DeployFortinet, !GetAtt FortinetStack.Outputs.fortinetLANENI, ""]
+      #tbd - kludge for now for demo. direct requests to sdwan lan eni
+      eniLAN2:    !If [DeployFortinet, !If [DeployCiscoSDWAN, !GetAtt CiscoSDWANStack.Outputs.vedgeLANENI, !GetAtt NokiaSDWANStack.Outputs.nsgLANENI],"" ]
+      #eniLAN2:    !If [DeployFortinet, !GetAtt FortinetStack.Outputs.fortinetLANENI, ""]
       eniWAN3:    !If [DeployRiverbed, !GetAtt FortinetStack.Outputs.riverbedWANENI, ""]
       eniLAN3:    !If [DeployRiverbed, !GetAtt FortinetStack.Outputs.riverbedLANENI, ""]
       enitestApp: !If [DeployTestApp, !GetAtt  TestAppStack.Outputs.NetworkENITest, ""]
       testAppSubnet: !If [DeployTestApp, !Sub '${NetworkAddressRange}.128/28', ""]
+      vpcType: !If [NewVPC, "new", "existing"]
       NokiaSDWANMgtAddressRange: !If [DeployNokiaSDWAN, !Ref VNFNokiaSDWANMgtAddressRanges, ""]
       CiscoSDWANMgtAddressRange: !If [DeployCiscoSDWAN, !Ref VNFCiscoSDWANMgtAddressRanges, ""]
       FortinetMgtAddressRange: !If [DeployFortinet, !Ref VNFFortinetMgtAddressRanges, ""]
@@ -1280,30 +1289,28 @@ Resources:
 #         Value: true
 #       - Key: Created
 #         Value: !Ref MiscTimeStampCreate
-
-  RunLogActivity:
-    Type: Custom::LogActivity
-    DependsOn: ["LAMLogActivity","DYDActivityLog","RunUpdateRouting"]
+#
+#################################################################################
+#Allocate EIPs - do this at end to ensure instances are in running state
+#################################################################################
+  vEdgeEIP:
+    Type: AWS::EC2::EIP
+    Condition: DeployCiscoSDWAN
     Properties:
-       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:btpcsn_lam_logActivity_${MiscRegionInstance}" 
-       Region: !Sub '${AWS::Region}'
-       StackName: !Sub '${AWS::StackName}'
-#      params: "chain=SDWAN>FW;res=High Availability;perf=High;external_cidr=..." 
-       params: !Join [ ":", [  !Sub 'NetworkAddressRange,=${NetworkAddressRange}', !Sub 'NetworkExternalAddressRanges=${NetworkExternalAddressRanges}', !Sub 'NetworkInternalHostAddressRanges=${NetworkInternalHostAddressRanges}', !Sub 'VNFServiceChain=${VNFServiceChain}', !Sub 'FlavourResilience=${FlavourResilience}', !Sub 'FlavourPerformance=${FlavourPerformance}', !Sub 'VNFNokiaSDWANMgtAddressRanges=${VNFNokiaSDWANMgtAddressRanges}', !Sub 'VNFNokiaSDWANUserData=${VNFNokiaSDWANUserData', !Sub 'VNFNokiaSDWANMonitor=${VNFNokiaSDWANMonitor}', !Sub 'VNFCiscoSDWANMgtAddressRanges=${VNFCiscoSDWANMgtAddressRanges}', !Sub 'VNFCiscoSDWANUserData=${VNFCiscoSDWANUserData}', !Sub 'CiscoSDWANMonitor=${VNFCiscoSDWANMonitor}', !Sub 'VNFFortinetMgtAddressRanges=${VNFFortinetMgtAddressRanges}', !Sub 'VNFFortinetUserData=${VNFFortinetUserData}', !Sub 'VNFFortinetMonitor=${VNFFortinetMonitor}', !Sub 'VNFRiverbedMgtAddressRanges=${VNFRiverbedMgtAddressRanges}', !Sub 'VNFRiverbedUserData=${VNFRiverbedUserData}', !Sub 'VNFRiverbedMonitor=${VNFRiverbedMonitor}', !Sub 'MiscFlowLogs=${MiscFlowLogs}', !Sub 'MiscRegionInstance=${MiscRegionInstance}', !Sub 'MiscDeployTestApp=${MiscDeployTestApp}', !Sub 'MiscDevTest=${MiscDevTest}', !Sub 'MiscTestAppTargetAddresses=${MiscTestAppTargetAddresses}', !Sub 'MiscTimeStampCreate=${MiscTimeStampCreate}', !Sub 'MiscTimeStampUpdate=${MiscTimeStampUpdate}' ]  ]
-       #logTableName: '${AWS::StackName}_dyd_activityLog'
-       logTableName: !Sub '${AWS::StackName}_dyd_activityLog_${AWS::Region}_${MiscRegionInstance}'
-       invokeType: 'cf'
-       Tags:
-       - Key: BT-PCSN-RESOURCE
-         Value: true
-       - Key: Created
-         Value: !Ref MiscTimeStampCreate
+      Domain: 'vpc'
+
+  vEdgeEIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: DeployCiscoSDWAN
+    DependsOn: ["LAMUpdateRouting"]
+    Properties:
+      AllocationId: !GetAtt vEdgeEIP.AllocationId
+      NetworkInterfaceId: !GetAtt CiscoSDWANStack.Outputs.vedgeWANENI
 
 
+#run log activity - see separate stack
 
-#runnetworktests - future - get his working last - how can run network test upon creation of sdwan since srims will need some post config ? may need to call update afterwards setting testapp to Y
-#invokeType: "lambdaTest",
-#    "testParams": "target=123.123.123.123",
+#runnetworktests - see seaprate stack
 
 #################################################################################
 #VNF Managers
@@ -1320,26 +1327,14 @@ Resources:
 #################################################################################
 #future - get ip address outputs from VNFs and testapp
 Outputs:
-  StackName:
-    Description: 'Stack name.'
-    Value: !Sub '${AWS::StackName}'
-  AZs:
-    Description: 'AZs'
-    Value: 2
-    Export:
-      Name: !Sub '${AWS::StackName}-AZs'
-#  AZA:
-#    Description: 'AZ of A'
-#    Value: !Select [0, !GetAZs '']
-#    Export:
-#      Name: !Sub '${AWS::StackName}-AZA'
-#  AZB:
-#    Description: 'AZ of B'
-#    Value: !Select [1, !GetAZs '']
-#    Export:
-#      Name: !Sub '${AWS::StackName}-AZB'
-
- 
+  CiscoSdwanLanAddress:
+    Condition: DeployCiscoSDWAN
+    Description: 'LAN side address of Cisco vedge'
+    Value: !GetAtt CiscoSDWANStack.Outputs.vedgeLANAddress
+  FirewallWanAddress:
+    Condition: DeployFortinet
+    Description: 'WAN side address of Firewall. SDWAN manager creates a statici route to this'
+    Value: !GetAtt FortinetStack.Outputs.fwWANAddress
  #Custom values required for VNF managers
  #future - add if required by srims
  # NokiaSDWANMACAddress:
